@@ -1,0 +1,25 @@
+{
+  "name": "demist",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A spec-driven multi-API workbench: point it at any OpenAPI spec and get a humane GUI that always shows the raw HTTP.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w @demist/server\" \"npm run dev -w @demist/web\"",
+    "test": "npm run test -w @demist/core && npm run test -w @demist/server",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build -w @demist/web",
+    "e2e": "tsx scripts/e2e.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
