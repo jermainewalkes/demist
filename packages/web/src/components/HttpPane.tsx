@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { JsonTree } from './JsonTree';
 import type { ExecuteResult } from '../types';
 
 interface Props {
@@ -9,20 +10,53 @@ interface Props {
   onExtract?: (path: string, varName: string) => Promise<string>;
 }
 
+/** Beyond this, skip the interactive tree — a flat <pre> stays fast. */
+const MAX_TREE_BYTES = 400_000;
+
 /**
  * The de-mystifying pane: the exact request demist will send (live preview),
  * and the full exchange once sent. Secrets arrive pre-masked from the server.
+ * JSON responses render as a clickable tree: clicking a key fills the extract
+ * path below — click the data you can see, get the path.
  */
 export function HttpPane({ preview, previewError, result, onExtract }: Props) {
   const [tab, setTab] = useState<'pretty' | 'raw'>('pretty');
+  const [extractPath, setExtractPath] = useState('');
+  const [varName, setVarName] = useState('');
+  const [extractStatus, setExtractStatus] = useState<string | null>(null);
   const response = result?.response;
 
-  let prettyBody: string | null = null;
-  if (response) {
+  // A fresh exchange invalidates the previous extraction status line.
+  useEffect(() => setExtractStatus(null), [response]);
+
+  const parsed = useMemo(() => {
+    if (!response || response.bodyText.length > MAX_TREE_BYTES) return undefined;
     try {
-      prettyBody = JSON.stringify(JSON.parse(response.bodyText), null, 2);
+      return { value: JSON.parse(response.bodyText) as unknown };
     } catch {
-      prettyBody = null;
+      return undefined;
+    }
+  }, [response]);
+
+  function pickPath(path: string) {
+    setExtractPath(path);
+    setExtractStatus(null);
+    if (varName === '') {
+      const segments = path.match(/[^.[\]"]+/g);
+      const last = segments?.[segments.length - 1] ?? '';
+      const name = last.replace(/[^A-Za-z0-9_.-]/g, '_');
+      if (name !== '' && !/^\d+$/.test(name)) setVarName(name);
+    }
+  }
+
+  async function extract() {
+    try {
+      const value = await onExtract!(extractPath.trim(), varName.trim());
+      setExtractStatus(
+        `Saved {{var.${varName.trim()}}} = ${value.length > 60 ? value.slice(0, 60) + '…' : value}`,
+      );
+    } catch (e) {
+      setExtractStatus((e as Error).message);
     }
   }
 
@@ -64,44 +98,36 @@ export function HttpPane({ preview, previewError, result, onExtract }: Props) {
           </h3>
           {tab === 'raw' ? (
             <pre className="transcript">{response.raw}</pre>
+          ) : parsed ? (
+            <JsonTree data={parsed.value} onPickPath={onExtract ? pickPath : undefined} />
           ) : (
-            <pre className="transcript">{prettyBody ?? response.bodyText}</pre>
+            <pre className="transcript">{response.bodyText}</pre>
           )}
           {response.truncated && (
             <div className="banner warn small">Response truncated at 2 MB</div>
           )}
-          {onExtract && prettyBody !== null && <ExtractForm onExtract={onExtract} />}
+          {onExtract && parsed && (
+            <div className="extract-form">
+              <span className="extract-label">extract</span>
+              <input
+                placeholder="click a key above, or type a path"
+                value={extractPath}
+                onChange={(e) => setExtractPath(e.target.value)}
+              />
+              <span className="extract-label">into</span>
+              <input
+                placeholder="variable name"
+                value={varName}
+                onChange={(e) => setVarName(e.target.value)}
+              />
+              <button onClick={extract} disabled={!extractPath.trim() || !varName.trim()}>
+                →
+              </button>
+              {extractStatus && <div className="hint extract-status">{extractStatus}</div>}
+            </div>
+          )}
         </section>
       )}
-    </div>
-  );
-}
-
-/** Pull a value out of the response into a workspace variable — chain it into the next request. */
-function ExtractForm({ onExtract }: { onExtract: (path: string, varName: string) => Promise<string> }) {
-  const [path, setPath] = useState('');
-  const [varName, setVarName] = useState('');
-  const [status, setStatus] = useState<string | null>(null);
-
-  async function extract() {
-    try {
-      const value = await onExtract(path.trim(), varName.trim());
-      setStatus(`Saved {{var.${varName.trim()}}} = ${value.length > 60 ? value.slice(0, 60) + '…' : value}`);
-    } catch (e) {
-      setStatus((e as Error).message);
-    }
-  }
-
-  return (
-    <div className="extract-form">
-      <span className="extract-label">extract</span>
-      <input placeholder="path, e.g. items[0].id" value={path} onChange={(e) => setPath(e.target.value)} />
-      <span className="extract-label">into</span>
-      <input placeholder="variable name" value={varName} onChange={(e) => setVarName(e.target.value)} />
-      <button onClick={extract} disabled={!path.trim() || !varName.trim()}>
-        →
-      </button>
-      {status && <div className="hint extract-status">{status}</div>}
     </div>
   );
 }

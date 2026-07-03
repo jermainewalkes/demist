@@ -342,6 +342,20 @@ button.link.active { text-decoration: underline; }
 .diff-notes { margin: 4px 0 2px; padding-left: 22px; color: var(--text-dim); font-size: 12px; }
 .banner.ok { background: #12301b; border: 1px solid #1f5b31; color: #7ee2a0; }
 
+/* ---- interactive JSON tree ---- */
+.json-tree { max-height: 46vh; overflow-y: auto; }
+.json-row { line-height: 1.55; white-space: nowrap; }
+.json-row.toggle { cursor: pointer; }
+.json-row.toggle:hover { background: rgba(94, 173, 242, 0.06); }
+.json-key { color: var(--accent); }
+.json-key.clickable { cursor: pointer; border-radius: 3px; }
+.json-key.clickable:hover { background: rgba(94, 173, 242, 0.18); outline: 1px solid var(--accent); }
+.json-punct { color: var(--text-dim); }
+.json-val.string { color: #a5d6a7; }
+.json-val.number { color: #ffcc80; }
+.json-val.boolean { color: #ce93d8; }
+.json-val.object { color: var(--text-dim); } /* null renders as typeof object */
+
 /* ---- misc ---- */
 .mini {
   border: none;
