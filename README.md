@@ -19,7 +19,7 @@ any spec into a usable console.
 
 ## Status
 
-Early. Milestone 1 (MVP) in progress:
+Early but capable — milestones 1–3 are done:
 
 - [x] Generic spec engine: Swagger 2.0 / OpenAPI 3.0 / 3.1, JSON or YAML, by URL or file
 - [x] Lazy, cycle-safe `$ref` resolution (large specs like GitHub's ~10 MB one stay fast)
@@ -27,8 +27,12 @@ Early. Milestone 1 (MVP) in progress:
 - [x] Encrypted secrets vault (AES-256-GCM); secrets never touch the browser or the workspace file
 - [x] Auth profiles derived from the spec's `securitySchemes` (apiKey / bearer / basic)
 - [x] Schema-generated request forms in the browser
-- [ ] OAuth2 flows
-- [ ] Saved requests, variables, response chaining
+- [x] Workspace variables and vault refs: `{{var.name}}` / `{{secret.name}}` in any field
+- [x] Saved requests; response-value extraction into variables (cross-API chaining)
+- [x] OAuth2 client credentials (token caching) and authorization code (PKCE, auto-refresh)
+- [x] Capability map: an X-ray of everything an API can do, from its spec alone
+- [x] Spec diffing: compare your workspace copy against upstream, one-click update
+- [ ] Publishing: npx one-command run, GitHub release
 
 ## Quick start
 

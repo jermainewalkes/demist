@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { LoadedApi } from '../App';
+
+type OauthMode = 'token' | 'client_credentials' | 'authorization_code';
 
 interface Props {
   apiId: string;
@@ -23,7 +25,8 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
   const [secretName, setSecretName] = useState(current?.secret ?? `${apiId}_secret`);
   const [secretValue, setSecretValue] = useState('');
   const [username, setUsername] = useState(current?.username ?? '');
-  const [mode, setMode] = useState<'token' | 'client_credentials'>(current?.mode ?? 'token');
+  const [mode, setMode] = useState<OauthMode>(current?.mode ?? 'token');
+  const [oauthStatus, setOauthStatus] = useState<{ authorized: boolean; expiresAt?: number } | null>(null);
   const [clientId, setClientId] = useState(current?.clientId ?? '');
   const [scopes, setScopes] = useState((current?.scopes ?? []).join(' '));
   const [server, setServer] = useState(loadedApi.entry.server ?? loadedApi.index.servers[0] ?? '');
@@ -36,7 +39,26 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
   const ccTokenUrl =
     scheme?.flows?.clientCredentials?.tokenUrl ??
     Object.values(scheme?.flows ?? {}).find((f) => f.tokenUrl)?.tokenUrl;
+  const acFlow =
+    scheme?.flows?.authorizationCode ??
+    Object.values(scheme?.flows ?? {}).find((f) => f.authorizationUrl && f.tokenUrl);
   const useClientCredentials = isOauth && mode === 'client_credentials';
+  const useAuthCode = isOauth && mode === 'authorization_code';
+  const callbackUrl = `${window.location.protocol}//127.0.0.1:4400/api/oauth/callback`;
+
+  useEffect(() => {
+    if (!useAuthCode) return;
+    let timer: ReturnType<typeof setInterval>;
+    const poll = () => api.oauthStatus(apiId).then(setOauthStatus).catch(() => {});
+    void poll();
+    timer = setInterval(poll, 3000);
+    return () => clearInterval(timer);
+  }, [useAuthCode, apiId]);
+
+  async function saveAndAuthorize() {
+    await save();
+    window.open(api.oauthStartUrl(apiId), '_blank');
+  }
 
   async function save() {
     setSaving(true);
@@ -53,10 +75,11 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
               secret: secretName,
               username: isBasic ? username : undefined,
               mode: isOauth ? mode : undefined,
-              clientId: useClientCredentials ? clientId : undefined,
-              scopes: useClientCredentials
-                ? scopes.split(/\s+/).filter((s) => s !== '')
-                : undefined,
+              clientId: useClientCredentials || useAuthCode ? clientId : undefined,
+              scopes:
+                useClientCredentials || useAuthCode
+                  ? scopes.split(/\s+/).filter((s) => s !== '')
+                  : undefined,
             }
           : null,
       });
@@ -110,13 +133,14 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
             <>
               <label>
                 OAuth2 mode
-                <select
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value as 'token' | 'client_credentials')}
-                >
+                <select value={mode} onChange={(e) => setMode(e.target.value as OauthMode)}>
                   <option value="token">paste an access token</option>
                   <option value="client_credentials" disabled={!ccTokenUrl}>
                     client credentials{ccTokenUrl ? '' : ' (spec declares no tokenUrl)'}
+                  </option>
+                  <option value="authorization_code" disabled={!acFlow}>
+                    authorization code — log in via browser
+                    {acFlow ? '' : ' (spec declares no such flow)'}
                   </option>
                 </select>
               </label>
@@ -136,7 +160,40 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
                   </label>
                 </>
               )}
-              {!useClientCredentials && (
+              {useAuthCode && (
+                <>
+                  <p className="hint">
+                    Register this redirect URI with the provider: <code>{callbackUrl}</code>.
+                    demist uses PKCE; tokens are stored encrypted in the vault and refreshed
+                    automatically.
+                  </p>
+                  <label>
+                    Client ID
+                    <input value={clientId} onChange={(e) => setClientId(e.target.value)} />
+                  </label>
+                  <label>
+                    Scopes (space-separated, optional)
+                    <input value={scopes} onChange={(e) => setScopes(e.target.value)} />
+                  </label>
+                  <div className="auth-actions">
+                    <button onClick={saveAndAuthorize} disabled={saving || !clientId}>
+                      Save &amp; authorize in browser
+                    </button>
+                    {oauthStatus &&
+                      (oauthStatus.authorized ? (
+                        <span className="auth-ok">
+                          authorized
+                          {oauthStatus.expiresAt
+                            ? ` · token ${oauthStatus.expiresAt > Date.now() ? 'valid' : 'expired (will refresh)'}`
+                            : ''}
+                        </span>
+                      ) : (
+                        <span className="auth-missing">not authorized yet</span>
+                      ))}
+                  </div>
+                </>
+              )}
+              {mode === 'token' && (
                 <p className="hint">
                   The pasted token is stored in the vault and sent as a Bearer header.
                 </p>
@@ -154,7 +211,14 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
             <input value={secretName} onChange={(e) => setSecretName(e.target.value)} />
           </label>
           <label>
-            Secret value {isBasic ? '(password)' : useClientCredentials ? '(client secret)' : '(key / token)'}
+            Secret value{' '}
+            {isBasic
+              ? '(password)'
+              : useClientCredentials
+                ? '(client secret)'
+                : useAuthCode
+                  ? '(client secret — leave empty for PKCE-only public clients)'
+                  : '(key / token)'}
             <input
               type="password"
               value={secretValue}

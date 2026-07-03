@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
 import { TokenManager } from './oauth.js';
+import { AuthCodeManager } from './oauth-code.js';
 import { registerRoutes } from './routes.js';
 import { SpecStore } from './store.js';
 import { Vault } from './vault.js';
@@ -15,11 +16,13 @@ const host = process.env.DEMIST_HOST ?? '127.0.0.1'; // local tool: never expose
 
 const app = Fastify({ logger: { level: 'info' } });
 
+const vault = new Vault(join(root, '.demist', 'vault.json'), process.env.DEMIST_VAULT_KEY);
 registerRoutes(app, {
   workspace: new WorkspaceStore(join(root, 'demist.workspace.yaml')),
   store: new SpecStore(join(root, '.demist', 'specs')),
-  vault: new Vault(join(root, '.demist', 'vault.json'), process.env.DEMIST_VAULT_KEY),
+  vault,
   tokens: new TokenManager(),
+  authCode: new AuthCodeManager(vault, `http://127.0.0.1:${port}/api/oauth/callback`),
 });
 
 // Serve the built UI when it exists (production mode); in dev, Vite serves it.

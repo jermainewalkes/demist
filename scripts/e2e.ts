@@ -8,6 +8,7 @@
  * against what the transcript *claimed*.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -96,15 +97,73 @@ function oauthSpec(baseUrl: string) {
 }
 
 const OAUTH_TOKEN = 'tok-e2e-ISSUED-SECRET';
+const AC_TOKEN = 'ac-at-1-SECRET';
+const AC_CODE = 'CODE-42';
+
+function authCodeSpec(baseUrl: string) {
+  return {
+    openapi: '3.0.3',
+    info: { title: 'AuthCode Echo API', version: '1.0.0' },
+    servers: [{ url: baseUrl }],
+    paths: {
+      '/guarded-ac': {
+        get: {
+          operationId: 'getGuardedAc',
+          responses: { '200': { description: 'OK' } },
+          security: [{ ac: [] }],
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        ac: {
+          type: 'oauth2',
+          flows: {
+            authorizationCode: {
+              authorizationUrl: `${baseUrl}/authorize`,
+              tokenUrl: `${baseUrl}/token`,
+              scopes: { read: 'Read' },
+            },
+          },
+        },
+      },
+    },
+  };
+}
+
+function diffSpec(baseUrl: string, version: 'a' | 'b') {
+  const paths: Record<string, unknown> = {
+    '/widgets': {
+      get: { operationId: 'listWidgets', responses: { '200': { description: 'OK' } } },
+    },
+  };
+  if (version === 'b') {
+    (paths['/widgets'] as Record<string, unknown>)['post'] = {
+      operationId: 'createWidget',
+      responses: { '201': { description: 'Created' } },
+    };
+  }
+  return {
+    openapi: '3.0.3',
+    info: { title: 'Diffable Echo API', version: version === 'a' ? '1.0.0' : '2.0.0' },
+    servers: [{ url: baseUrl }],
+    paths,
+  };
+}
 
 async function startEcho(): Promise<{
   server: Server;
   base: string;
   captured: Captured[];
   tokenRequests: string[];
+  acTokenRequests: string[];
+  setDiffVersion: (v: 'a' | 'b') => void;
 }> {
   const captured: Captured[] = [];
   const tokenRequests: string[] = [];
+  const acTokenRequests: string[] = [];
+  let pkceChallenge: string | undefined;
+  let diffVersion: 'a' | 'b' = 'a';
   const server = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
@@ -119,7 +178,48 @@ async function startEcho(): Promise<{
         res.end(JSON.stringify(oauthSpec(base)));
         return;
       }
+      if (req.url === '/authcode-spec.json') {
+        res.end(JSON.stringify(authCodeSpec(base)));
+        return;
+      }
+      if (req.url === '/diff-spec.json') {
+        res.end(JSON.stringify(diffSpec(base, diffVersion)));
+        return;
+      }
+      if (req.url?.startsWith('/authorize')) {
+        // "Log in" instantly: remember the PKCE challenge, bounce back with a code.
+        const q = new URL(req.url, base).searchParams;
+        pkceChallenge = q.get('code_challenge') ?? undefined;
+        res.statusCode = 302;
+        res.setHeader('location', `${q.get('redirect_uri')}?code=${AC_CODE}&state=${q.get('state')}`);
+        res.end();
+        return;
+      }
       if (req.url === '/token') {
+        const form = new URLSearchParams(body);
+        const grant = form.get('grant_type');
+        if (grant === 'authorization_code') {
+          acTokenRequests.push(body);
+          const verifierOk =
+            form.get('code') === AC_CODE &&
+            pkceChallenge !== undefined &&
+            createHash('sha256').update(form.get('code_verifier') ?? '').digest('base64url') ===
+              pkceChallenge;
+          if (!verifierOk) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'invalid_grant (PKCE or code mismatch)' }));
+            return;
+          }
+          res.end(
+            JSON.stringify({ access_token: AC_TOKEN, refresh_token: 'ac-rt-SECRET', expires_in: 3600 }),
+          );
+          return;
+        }
+        if (grant === 'refresh_token') {
+          acTokenRequests.push(body);
+          res.end(JSON.stringify({ access_token: 'ac-at-2-SECRET', expires_in: 3600 }));
+          return;
+        }
         tokenRequests.push(body);
         res.end(JSON.stringify({ access_token: OAUTH_TOKEN, expires_in: 3600 }));
         return;
@@ -136,7 +236,16 @@ async function startEcho(): Promise<{
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  return { server, base, captured, tokenRequests };
+  return {
+    server,
+    base,
+    captured,
+    tokenRequests,
+    acTokenRequests,
+    setDiffVersion: (v) => {
+      diffVersion = v;
+    },
+  };
 }
 
 async function startDemist(root: string): Promise<ChildProcess> {
@@ -166,8 +275,8 @@ async function startDemist(root: string): Promise<ChildProcess> {
 
 async function demist<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`http://127.0.0.1:${DEMIST_PORT}${path}`, {
-    headers: { 'content-type': 'application/json' },
     ...init,
+    headers: init?.body !== undefined ? { 'content-type': 'application/json' } : undefined,
   });
   const data = await res.json();
   if (!res.ok) throw new Error(`${path}: HTTP ${res.status} ${JSON.stringify(data)}`);
@@ -175,7 +284,14 @@ async function demist<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const root = mkdtempSync(join(tmpdir(), 'demist-e2e-'));
-const { server: echo, base: echoBase, captured, tokenRequests } = await startEcho();
+const {
+  server: echo,
+  base: echoBase,
+  captured,
+  tokenRequests,
+  acTokenRequests,
+  setDiffVersion,
+} = await startEcho();
 let child: ChildProcess | undefined;
 
 try {
@@ -357,6 +473,75 @@ try {
     'token and client secret masked client-side',
     !JSON.stringify(oauth1).includes(OAUTH_TOKEN) && !JSON.stringify(oauth1).includes('cc-client-SECRET'),
   );
+
+  // ---- M3: oauth2 authorization code (PKCE, browser simulated) ----------
+  console.log('\ne2e: M3 — authorization code, spec diffing');
+  const demistBase = `http://127.0.0.1:${DEMIST_PORT}`;
+  const acAdded = await demist<{ id: string }>('/api/apis', {
+    method: 'POST',
+    body: JSON.stringify({ url: `${echoBase}/authcode-spec.json` }),
+  });
+  await demist(`/api/apis/${acAdded.id}/config`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      auth: { scheme: 'ac', mode: 'authorization_code', clientId: 'e2e-ac', scopes: ['read'] },
+    }),
+  });
+
+  // The browser dance: demist redirect -> provider "login" redirect -> demist callback.
+  const startRes = await fetch(`${demistBase}/api/oauth/start?apiId=${acAdded.id}`, {
+    redirect: 'manual',
+  });
+  check('oauth start redirects to the provider', startRes.status === 302);
+  const providerUrl = startRes.headers.get('location')!;
+  check('provider URL carries PKCE challenge', providerUrl.includes('code_challenge='));
+  const providerRes = await fetch(providerUrl, { redirect: 'manual' });
+  const callbackUrl = providerRes.headers.get('location')!;
+  check('provider bounces back to the demist callback', callbackUrl.startsWith(`${demistBase}/api/oauth/callback`));
+  const callbackRes = await fetch(callbackUrl);
+  check('callback exchanges the code (PKCE verified by provider)', callbackRes.status === 200);
+  check('callback page confirms authorization', (await callbackRes.text()).includes('Authorized'));
+
+  const status = await demist<{ authorized: boolean; hasRefresh: boolean }>(
+    `/api/oauth/status?apiId=${acAdded.id}`,
+  );
+  check('status reports authorized with refresh token', status.authorized && status.hasRefresh);
+
+  const acRun = await demist<{ response: { status: number } }>('/api/execute', {
+    method: 'POST',
+    body: JSON.stringify({ apiId: acAdded.id, opId: 'getGuardedAc' }),
+  });
+  const acHit = captured.filter((c) => c.url === '/guarded-ac')[0];
+  check('authorized call succeeded', acRun.response.status === 200);
+  check('access token actually sent as Bearer', acHit?.headers.authorization === `Bearer ${AC_TOKEN}`);
+  check('access token masked client-side', !JSON.stringify(acRun).includes(AC_TOKEN));
+  check('exactly one code exchange happened', acTokenRequests.length === 1);
+
+  // ---- M3: spec diffing ---------------------------------------------------
+  const diffAdded = await demist<{ id: string; index: { operations: unknown[] } }>('/api/apis', {
+    method: 'POST',
+    body: JSON.stringify({ url: `${echoBase}/diff-spec.json` }),
+  });
+  check('diff API starts with one operation', diffAdded.index.operations.length === 1);
+
+  setDiffVersion('b');
+  const diff = await demist<{
+    identical: boolean;
+    oldVersion: string;
+    newVersion: string;
+    added: { method: string; path: string }[];
+  }>(`/api/apis/${diffAdded.id}/diff`);
+  check('diff sees the upstream change', !diff.identical && diff.added.length === 1);
+  check('diff reports versions', diff.oldVersion === '1.0.0' && diff.newVersion === '2.0.0');
+  check('diff names the added operation', diff.added[0].method === 'POST' && diff.added[0].path === '/widgets');
+
+  const refreshed = await demist<{ index: { operations: unknown[] } }>(
+    `/api/apis/${diffAdded.id}/refresh`,
+    { method: 'POST' },
+  );
+  check('refresh updates the workspace copy', refreshed.index.operations.length === 2);
+  const diffAfter = await demist<{ identical: boolean }>(`/api/apis/${diffAdded.id}/diff`);
+  check('post-refresh diff is identical', diffAfter.identical);
 } finally {
   child?.kill();
   echo.close();

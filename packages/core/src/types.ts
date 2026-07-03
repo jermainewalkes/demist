@@ -45,6 +45,8 @@ export interface ApiIndex {
   servers: string[];
   operations: OperationSummary[];
   securitySchemes: Record<string, SecurityScheme>;
+  /** Number of named schemas in components.schemas. */
+  schemaCount: number;
   /** Non-fatal problems found while ingesting the spec. */
   warnings: string[];
 }

@@ -26,7 +26,27 @@ export interface ApiIndex {
   servers: string[];
   operations: OperationSummary[];
   securitySchemes: Record<string, SecurityScheme>;
+  schemaCount: number;
   warnings: string[];
+}
+
+export interface OpChange {
+  method: string;
+  path: string;
+  summary?: string;
+  notes: string[];
+}
+
+export interface SpecDiff {
+  oldVersion: string;
+  newVersion: string;
+  added: OperationSummary[];
+  removed: OperationSummary[];
+  changed: OpChange[];
+  schemesAdded: string[];
+  schemesRemoved: string[];
+  serversChanged?: { old: string[]; new: string[] };
+  identical: boolean;
 }
 
 export interface ParameterDetail {
@@ -49,7 +69,7 @@ export interface AuthProfile {
   scheme: string;
   secret?: string;
   username?: string;
-  mode?: 'token' | 'client_credentials';
+  mode?: 'token' | 'client_credentials' | 'authorization_code';
   clientId?: string;
   scopes?: string[];
 }

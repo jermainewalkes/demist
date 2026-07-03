@@ -12,6 +12,8 @@ interface Props {
   onLoadApi: (id: string) => Promise<LoadedApi>;
   onSelect: (apiId: string, opId: string) => void;
   onSelectSaved: (saved: SavedRequest) => void;
+  onShowMap: (apiId: string) => void;
+  onShowDiff: (apiId: string) => void;
   onWorkspaceChanged: () => void;
 }
 
@@ -24,6 +26,8 @@ export function Sidebar({
   onLoadApi,
   onSelect,
   onSelectSaved,
+  onShowMap,
+  onShowDiff,
   onWorkspaceChanged,
 }: Props) {
   const [specUrl, setSpecUrl] = useState('');
@@ -107,6 +111,28 @@ export function Sidebar({
               <span className="disclosure">{isOpen ? '▾' : '▸'}</span>
               <span className="api-name" title={entry.spec.url}>{entry.name}</span>
               {loadedApi && <span className="op-count">{loadedApi.index.operations.length}</span>}
+              <button
+                className="mini"
+                title="Capability map"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShowMap(entry.id);
+                }}
+              >
+                ▦
+              </button>
+              {entry.spec.url && (
+                <button
+                  className="mini"
+                  title="Check for spec changes"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShowDiff(entry.id);
+                  }}
+                >
+                  ⟳
+                </button>
+              )}
               <button
                 className="remove"
                 title="Remove API"

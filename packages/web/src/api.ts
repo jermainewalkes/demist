@@ -5,13 +5,14 @@ import type {
   ExecuteResult,
   OperationDetail,
   SavedRequest,
+  SpecDiff,
   WorkspaceApi,
 } from './types';
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
-    headers: { 'content-type': 'application/json' },
     ...init,
+    headers: init?.body !== undefined ? { 'content-type': 'application/json' } : undefined,
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -71,4 +72,19 @@ export const api = {
 
   execute: (payload: ExecutePayload) =>
     call<ExecuteResult>('/api/execute', { method: 'POST', body: JSON.stringify(payload) }),
+
+  oauthStatus: (apiId: string) =>
+    call<{ authorized: boolean; expiresAt?: number; hasRefresh?: boolean }>(
+      `/api/oauth/status?apiId=${encodeURIComponent(apiId)}`,
+    ),
+
+  oauthStartUrl: (apiId: string) => `/api/oauth/start?apiId=${encodeURIComponent(apiId)}`,
+
+  forgetOauthTokens: (apiId: string) =>
+    call(`/api/oauth/tokens/${encodeURIComponent(apiId)}`, { method: 'DELETE' }),
+
+  diffApi: (id: string) => call<SpecDiff>(`/api/apis/${id}/diff`),
+
+  refreshApi: (id: string) =>
+    call<{ index: ApiIndex }>(`/api/apis/${id}/refresh`, { method: 'POST' }),
 };

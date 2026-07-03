@@ -106,6 +106,7 @@ export async function normalizeSpec(raw: Record<string, unknown>): Promise<Norma
       servers,
       operations,
       securitySchemes: extractSecuritySchemes(doc),
+      schemaCount: Object.keys(asObject(asObject(doc.components)?.schemas) ?? {}).length,
       warnings,
     },
   };

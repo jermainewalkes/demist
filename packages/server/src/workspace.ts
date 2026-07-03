@@ -8,8 +8,8 @@ export interface AuthProfile {
   secret?: string;
   /** For HTTP basic auth. */
   username?: string;
-  /** For oauth2 schemes: paste-a-token (default) or automated client credentials. */
-  mode?: 'token' | 'client_credentials';
+  /** For oauth2 schemes: paste-a-token (default), client credentials, or browser authorization-code. */
+  mode?: 'token' | 'client_credentials' | 'authorization_code';
   clientId?: string;
   scopes?: string[];
 }

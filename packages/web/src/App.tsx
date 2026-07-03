@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { Sidebar } from './components/Sidebar';
 import { OperationView } from './components/OperationView';
+import { CapabilityMap } from './components/CapabilityMap';
+import { SpecDiffView } from './components/SpecDiffView';
 import type { ApiIndex, SavedRequest, WorkspaceApi } from './types';
 
 export interface LoadedApi {
@@ -9,13 +11,19 @@ export interface LoadedApi {
   index: ApiIndex;
 }
 
+type View =
+  | { kind: 'op'; apiId: string; opId: string }
+  | { kind: 'map'; apiId: string }
+  | { kind: 'diff'; apiId: string }
+  | null;
+
 export function App() {
   const [apis, setApis] = useState<WorkspaceApi[]>([]);
   const [variables, setVariables] = useState<Record<string, string>>({});
   const [requests, setRequests] = useState<SavedRequest[]>([]);
   const [vaultEnabled, setVaultEnabled] = useState(false);
   const [loaded, setLoaded] = useState<Record<string, LoadedApi>>({});
-  const [selected, setSelected] = useState<{ apiId: string; opId: string } | null>(null);
+  const [view, setView] = useState<View>(null);
   const [restore, setRestore] = useState<SavedRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
   const restoreCounter = useRef(0);
@@ -42,30 +50,52 @@ export function App() {
     return result;
   }, []);
 
-  const selectOperation = useCallback((apiId: string, opId: string) => {
-    setRestore(null);
-    setSelected({ apiId, opId });
-  }, []);
-
-  const selectSavedRequest = useCallback(
-    async (saved: SavedRequest) => {
-      if (!loaded[saved.apiId]) {
-        try {
-          await loadApi(saved.apiId);
-        } catch (e) {
-          setError((e as Error).message);
-          return;
-        }
+  const ensureLoaded = useCallback(
+    async (id: string): Promise<boolean> => {
+      if (loaded[id]) return true;
+      try {
+        await loadApi(id);
+        return true;
+      } catch (e) {
+        setError((e as Error).message);
+        return false;
       }
-      restoreCounter.current++;
-      setRestore(saved);
-      setSelected({ apiId: saved.apiId, opId: saved.opId });
     },
     [loaded, loadApi],
   );
 
-  const selectedApi = selected ? loaded[selected.apiId] : undefined;
-  const selectedOp = selectedApi?.index.operations.find((o) => o.id === selected?.opId);
+  const selectOperation = useCallback((apiId: string, opId: string) => {
+    setRestore(null);
+    setView({ kind: 'op', apiId, opId });
+  }, []);
+
+  const selectSavedRequest = useCallback(
+    async (saved: SavedRequest) => {
+      if (!(await ensureLoaded(saved.apiId))) return;
+      restoreCounter.current++;
+      setRestore(saved);
+      setView({ kind: 'op', apiId: saved.apiId, opId: saved.opId });
+    },
+    [ensureLoaded],
+  );
+
+  const showMap = useCallback(
+    async (apiId: string) => {
+      if (await ensureLoaded(apiId)) setView({ kind: 'map', apiId });
+    },
+    [ensureLoaded],
+  );
+
+  const showDiff = useCallback(
+    async (apiId: string) => {
+      if (await ensureLoaded(apiId)) setView({ kind: 'diff', apiId });
+    },
+    [ensureLoaded],
+  );
+
+  const viewApi = view ? loaded[view.apiId] : undefined;
+  const viewOp =
+    view?.kind === 'op' ? viewApi?.index.operations.find((o) => o.id === view.opId) : undefined;
 
   return (
     <div className="app">
@@ -83,23 +113,39 @@ export function App() {
           variables={variables}
           requests={requests}
           loaded={loaded}
-          selected={selected}
+          selected={view?.kind === 'op' ? { apiId: view.apiId, opId: view.opId } : null}
           onLoadApi={loadApi}
           onSelect={selectOperation}
           onSelectSaved={selectSavedRequest}
+          onShowMap={showMap}
+          onShowDiff={showDiff}
           onWorkspaceChanged={refreshWorkspace}
         />
         <main className="main">
-          {selectedApi && selectedOp ? (
+          {view?.kind === 'op' && viewApi && viewOp ? (
             <OperationView
-              key={`${selected!.apiId}:${selected!.opId}:${restore ? `${restore.id}#${restoreCounter.current}` : ''}`}
-              apiId={selected!.apiId}
-              loadedApi={selectedApi}
-              summary={selectedOp}
+              key={`${view.apiId}:${view.opId}:${restore ? `${restore.id}#${restoreCounter.current}` : ''}`}
+              apiId={view.apiId}
+              loadedApi={viewApi}
+              summary={viewOp}
               initial={restore ?? undefined}
               vaultEnabled={vaultEnabled}
-              onConfigChanged={() => loadApi(selected!.apiId)}
+              onConfigChanged={() => loadApi(view.apiId)}
               onWorkspaceChanged={refreshWorkspace}
+            />
+          ) : view?.kind === 'map' && viewApi ? (
+            <CapabilityMap
+              loadedApi={viewApi}
+              onSelectOp={(opId) => selectOperation(view.apiId, opId)}
+            />
+          ) : view?.kind === 'diff' && viewApi ? (
+            <SpecDiffView
+              apiId={view.apiId}
+              apiName={viewApi.entry.name}
+              onRefreshed={async () => {
+                await loadApi(view.apiId);
+                setView({ kind: 'map', apiId: view.apiId });
+              }}
             />
           ) : (
             <div className="empty">

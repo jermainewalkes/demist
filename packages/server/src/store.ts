@@ -34,6 +34,11 @@ export class SpecStore {
     return spec;
   }
 
+  /** Memory cache only — for synchronous contexts (e.g. OAuth callbacks). */
+  getCached(id: string): NormalizedSpec | undefined {
+    return this.cache.get(id);
+  }
+
   /** Memory -> disk cache -> refetch from the workspace's spec URL. */
   async get(id: string, specUrl?: string): Promise<NormalizedSpec> {
     const cached = this.cache.get(id);

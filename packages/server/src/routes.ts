@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
-import { SpecError } from '@demist/core';
-import { getOperationDetail } from '@demist/core';
+import {
+  diffSpecs,
+  fetchSpec,
+  getOperationDetail,
+  normalizeSpec,
+  SpecError,
+  type SecurityScheme,
+} from '@demist/core';
 import { buildAuth, EMPTY_AUTH, type AuthMaterial } from './auth.js';
+import type { AuthCodeConfig, AuthCodeManager } from './oauth-code.js';
 import {
   buildRequest,
   executeRequest,
@@ -19,6 +26,7 @@ export interface Services {
   store: SpecStore;
   vault: Vault;
   tokens: TokenManager;
+  authCode: AuthCodeManager;
 }
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -39,8 +47,39 @@ function maskText(text: string, secrets: string[]): string {
   return out;
 }
 
+function resolveAuthCodeConfig(
+  entryId: string,
+  auth: AuthProfile,
+  scheme: SecurityScheme,
+  vault: Vault,
+): AuthCodeConfig {
+  const flow =
+    scheme.flows?.authorizationCode ??
+    Object.values(scheme.flows ?? {}).find((f) => f.authorizationUrl && f.tokenUrl);
+  if (!flow?.authorizationUrl || !flow.tokenUrl) {
+    throw new Error(`Scheme "${auth.scheme}" declares no authorization-code flow (authorizationUrl + tokenUrl)`);
+  }
+  if (!auth.clientId) throw new Error('Authorization-code auth needs a clientId');
+  const clientSecret = auth.secret && vault.enabled ? vault.get(auth.secret) : undefined;
+  return {
+    apiId: entryId,
+    authorizationUrl: flow.authorizationUrl,
+    tokenUrl: flow.tokenUrl,
+    clientId: auth.clientId,
+    clientSecret,
+    scopes: auth.scopes ?? [],
+  };
+}
+
+function callbackHtml(title: string, message: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>demist</title>
+<style>body{font-family:-apple-system,sans-serif;background:#10141a;color:#d7dee8;display:grid;place-items:center;height:100vh;margin:0}
+main{text-align:center}h1{font-size:20px}p{color:#8b98a9}</style></head>
+<body><main><h1>${title}</h1><p>${message}</p></main></body></html>`;
+}
+
 export function registerRoutes(app: FastifyInstance, services: Services): void {
-  const { workspace, store, vault, tokens } = services;
+  const { workspace, store, vault, tokens, authCode } = services;
 
   app.get('/api/health', async () => ({ ok: true, vaultEnabled: vault.enabled }));
 
@@ -194,6 +233,97 @@ export function registerRoutes(app: FastifyInstance, services: Services): void {
     },
   );
 
+  // ---- OAuth2 authorization-code flow ----------------------------------
+
+  app.get<{ Querystring: { apiId: string } }>('/api/oauth/start', async (req, reply) => {
+    const entry = workspace.read().apis.find((a) => a.id === req.query.apiId);
+    if (!entry?.auth) return reply.code(404).send({ error: 'API not found or has no auth profile' });
+    const spec = await store.get(entry.id, entry.spec.url);
+    const scheme = spec.index.securitySchemes[entry.auth.scheme];
+    if (!scheme) return reply.code(400).send({ error: `Unknown scheme "${entry.auth.scheme}"` });
+    try {
+      const url = authCode.start(resolveAuthCodeConfig(entry.id, entry.auth, scheme, vault));
+      return reply.redirect(url);
+    } catch (e) {
+      return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
+  app.get<{ Querystring: { code?: string; state?: string; error?: string; error_description?: string } }>(
+    '/api/oauth/callback',
+    async (req, reply) => {
+      reply.type('text/html');
+      const { code, state, error, error_description } = req.query;
+      if (error) {
+        return reply
+          .code(400)
+          .send(callbackHtml('Authorization failed', error_description ?? error));
+      }
+      if (!code || !state) {
+        return reply.code(400).send(callbackHtml('Authorization failed', 'Missing code or state'));
+      }
+      try {
+        const apiId = await authCode.handleCallback(state, code, (id) => {
+          const entry = workspace.read().apis.find((a) => a.id === id);
+          if (!entry?.auth) throw new Error(`API "${id}" no longer has an auth profile`);
+          const spec = store.getCached(id);
+          const scheme = spec?.index.securitySchemes[entry.auth.scheme];
+          if (!scheme) throw new Error(`Unknown scheme "${entry.auth.scheme}"`);
+          return resolveAuthCodeConfig(entry.id, entry.auth, scheme, vault);
+        });
+        return reply.send(
+          callbackHtml('Authorized ✓', `demist can now call "${apiId}". You can close this tab.`),
+        );
+      } catch (e) {
+        return reply
+          .code(400)
+          .send(callbackHtml('Authorization failed', e instanceof Error ? e.message : String(e)));
+      }
+    },
+  );
+
+  app.get<{ Querystring: { apiId: string } }>('/api/oauth/status', async (req) =>
+    authCode.status(req.query.apiId),
+  );
+
+  app.delete<{ Params: { apiId: string } }>('/api/oauth/tokens/:apiId', async (req) => {
+    authCode.forget(req.params.apiId);
+    return { ok: true };
+  });
+
+  // ---- spec diffing ------------------------------------------------------
+
+  app.get<{ Params: { id: string } }>('/api/apis/:id/diff', async (req, reply) => {
+    const entry = workspace.read().apis.find((a) => a.id === req.params.id);
+    if (!entry) return reply.code(404).send({ error: `Unknown API: ${req.params.id}` });
+    if (!entry.spec.url) {
+      return reply.code(400).send({ error: 'This API was added inline — there is no URL to re-fetch' });
+    }
+    try {
+      const current = await store.get(entry.id, entry.spec.url);
+      const latest = await normalizeSpec(await fetchSpec(entry.spec.url));
+      return diffSpecs(current, latest);
+    } catch (e) {
+      const status = e instanceof SpecError ? 422 : 502;
+      return reply.code(status).send({ error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
+  app.post<{ Params: { id: string } }>('/api/apis/:id/refresh', async (req, reply) => {
+    const entry = workspace.read().apis.find((a) => a.id === req.params.id);
+    if (!entry) return reply.code(404).send({ error: `Unknown API: ${req.params.id}` });
+    if (!entry.spec.url) {
+      return reply.code(400).send({ error: 'This API was added inline — there is no URL to re-fetch' });
+    }
+    try {
+      const spec = await store.ingestFromUrl(entry.id, entry.spec.url);
+      return { index: spec.index };
+    } catch (e) {
+      const status = e instanceof SpecError ? 422 : 502;
+      return reply.code(status).send({ error: e instanceof Error ? e.message : String(e) });
+    }
+  });
+
   app.get('/api/secrets', async () => ({
     enabled: vault.enabled,
     names: vault.enabled ? vault.list() : [],
@@ -282,6 +412,24 @@ export function registerRoutes(app: FastifyInstance, services: Services): void {
       if (!vault.enabled) {
         return reply.code(409).send({ error: 'Auth configured but vault is disabled (set DEMIST_VAULT_KEY)' });
       }
+      if (entry.auth.mode === 'authorization_code') {
+        if (dryRun) {
+          auth = { headers: { authorization: `Bearer ${MASK}` }, query: {}, maskValues: [] };
+        } else {
+          try {
+            const cfg = resolveAuthCodeConfig(entry.id, entry.auth, scheme, vault);
+            const token = await authCode.getAccessToken(cfg);
+            auth = {
+              headers: { authorization: `Bearer ${token}` },
+              query: {},
+              maskValues: cfg.clientSecret ? [token, cfg.clientSecret] : [token],
+            };
+          } catch (e) {
+            return reply.code(502).send({ error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+        // fallthrough to buildRequest below
+      } else {
       const secretValue = entry.auth.secret ? vault.get(entry.auth.secret) : undefined;
       if (secretValue === undefined) {
         return reply
@@ -328,6 +476,7 @@ export function registerRoutes(app: FastifyInstance, services: Services): void {
         } catch (e) {
           return reply.code(400).send({ error: e instanceof Error ? e.message : String(e) });
         }
+      }
       }
     }
 
