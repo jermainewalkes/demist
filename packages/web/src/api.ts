@@ -4,6 +4,7 @@ import type {
   ExecutePayload,
   ExecuteResult,
   OperationDetail,
+  SavedRequest,
   WorkspaceApi,
 } from './types';
 
@@ -21,7 +22,27 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   workspace: () =>
-    call<{ apis: WorkspaceApi[]; vaultEnabled: boolean }>('/api/workspace'),
+    call<{
+      apis: WorkspaceApi[];
+      variables: Record<string, string>;
+      requests: SavedRequest[];
+      vaultEnabled: boolean;
+    }>('/api/workspace'),
+
+  putVariable: (name: string, value: string) =>
+    call(`/api/variables/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ value }),
+    }),
+
+  deleteVariable: (name: string) =>
+    call(`/api/variables/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  saveRequest: (body: Omit<SavedRequest, 'id'>) =>
+    call<SavedRequest>('/api/requests', { method: 'POST', body: JSON.stringify(body) }),
+
+  deleteRequest: (id: string) =>
+    call(`/api/requests/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
   addApi: (body: { url?: string; text?: string; name?: string }) =>
     call<{ id: string; index: ApiIndex }>('/api/apis', {

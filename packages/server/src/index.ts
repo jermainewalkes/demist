@@ -3,6 +3,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
+import { TokenManager } from './oauth.js';
 import { registerRoutes } from './routes.js';
 import { SpecStore } from './store.js';
 import { Vault } from './vault.js';
@@ -18,6 +19,7 @@ registerRoutes(app, {
   workspace: new WorkspaceStore(join(root, 'demist.workspace.yaml')),
   store: new SpecStore(join(root, '.demist', 'specs')),
   vault: new Vault(join(root, '.demist', 'vault.json'), process.env.DEMIST_VAULT_KEY),
+  tokens: new TokenManager(),
 });
 
 // Serve the built UI when it exists (production mode); in dev, Vite serves it.

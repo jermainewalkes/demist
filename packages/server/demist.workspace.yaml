@@ -1,0 +1,6 @@
+version: 1
+apis:
+  - id: swagger-petstore-openapi-3-0
+    name: Swagger Petstore - OpenAPI 3.0
+    spec:
+      url: https://petstore3.swagger.io/api/v3/openapi.json

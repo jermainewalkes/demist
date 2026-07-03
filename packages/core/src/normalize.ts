@@ -142,12 +142,28 @@ function extractSecuritySchemes(doc: Record<string, unknown>): Record<string, Se
       value = asObject(resolvePointer(doc, value.$ref));
     }
     if (!value || typeof value.type !== 'string') continue;
+    let flows: SecurityScheme['flows'];
+    const rawFlows = asObject(value.flows);
+    if (rawFlows) {
+      flows = {};
+      for (const [flowName, flowRaw] of Object.entries(rawFlows)) {
+        const flow = asObject(flowRaw);
+        if (!flow) continue;
+        flows[flowName] = {
+          authorizationUrl:
+            typeof flow.authorizationUrl === 'string' ? flow.authorizationUrl : undefined,
+          tokenUrl: typeof flow.tokenUrl === 'string' ? flow.tokenUrl : undefined,
+          scopes: asObject(flow.scopes) as Record<string, string> | undefined,
+        };
+      }
+    }
     schemes[key] = {
       type: value.type,
       description: typeof value.description === 'string' ? value.description : undefined,
       name: typeof value.name === 'string' ? value.name : undefined,
       in: typeof value.in === 'string' ? value.in : undefined,
       scheme: typeof value.scheme === 'string' ? value.scheme : undefined,
+      flows,
     };
   }
   return schemes;

@@ -18,6 +18,7 @@ export interface SecurityScheme {
   name?: string;
   in?: string;
   scheme?: string;
+  flows?: Record<string, { authorizationUrl?: string; tokenUrl?: string; scopes?: Record<string, string> }>;
 }
 
 export interface ApiIndex {
@@ -48,6 +49,23 @@ export interface AuthProfile {
   scheme: string;
   secret?: string;
   username?: string;
+  mode?: 'token' | 'client_credentials';
+  clientId?: string;
+  scopes?: string[];
+}
+
+export interface SavedRequest {
+  id: string;
+  name: string;
+  apiId: string;
+  opId: string;
+  params?: {
+    path?: Record<string, unknown>;
+    query?: Record<string, unknown>;
+    header?: Record<string, unknown>;
+  };
+  contentType?: string;
+  body?: unknown;
 }
 
 export interface WorkspaceApi {
@@ -92,4 +110,6 @@ export interface ExecuteResult {
   request: ExchangeRequest;
   response?: ExchangeResponse;
   error?: string;
+  /** Dry-run only: unresolved {{var/secret}} references. */
+  missing?: string[];
 }

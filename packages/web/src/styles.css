@@ -241,6 +241,55 @@ button.link.active { text-decoration: underline; }
 .timing { color: var(--text-dim); font-size: 11px; }
 .tabs { margin-left: auto; }
 
+/* ---- sidebar sections: saved requests, variables ---- */
+.side-section {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.side-section h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+.side-section .hint { font-size: 12px; color: var(--text-dim); margin: 4px 0; }
+.op-row.saved { padding-left: 8px; font-family: inherit; font-size: 13px; }
+.op-row.saved .path { flex: 1; }
+.var-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+.var-name { color: var(--accent); }
+.var-value {
+  flex: 1;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.var-add { display: flex; gap: 6px; margin-top: 6px; }
+.var-add input { flex: 1; min-width: 0; font-size: 12px; padding: 4px 7px; }
+.var-add button { padding: 4px 10px; }
+
+/* ---- extraction (chaining) ---- */
+.extract-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.extract-label { color: var(--text-dim); }
+.extract-form input { font-size: 12px; padding: 4px 7px; width: 150px; }
+.extract-status { width: 100%; }
+.hint { font-size: 12px; color: var(--text-dim); }
+
 /* ---- banners ---- */
 .banner {
   border-radius: 6px;

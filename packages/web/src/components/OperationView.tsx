@@ -6,19 +6,23 @@ import { api } from '../api';
 import type { LoadedApi } from '../App';
 import { AuthPanel } from './AuthPanel';
 import { HttpPane } from './HttpPane';
+import { getPath } from '../util';
 import type {
   ExecuteResult,
   OperationDetail,
   OperationSummary,
   ParameterDetail,
+  SavedRequest,
 } from '../types';
 
 interface Props {
   apiId: string;
   loadedApi: LoadedApi;
   summary: OperationSummary;
+  initial?: SavedRequest;
   vaultEnabled: boolean;
   onConfigChanged: () => void;
+  onWorkspaceChanged: () => void;
 }
 
 const NO_SUBMIT: UiSchema = { 'ui:submitButtonOptions': { norender: true } };
@@ -33,16 +37,29 @@ function groupSchema(params: ParameterDetail[]): RJSFSchema {
   } as RJSFSchema;
 }
 
-export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfigChanged }: Props) {
+export function OperationView({
+  apiId,
+  loadedApi,
+  summary,
+  initial,
+  vaultEnabled,
+  onConfigChanged,
+  onWorkspaceChanged,
+}: Props) {
   const [detail, setDetail] = useState<OperationDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [paramData, setParamData] = useState<Record<string, Record<string, unknown>>>({});
+  const [paramData, setParamData] = useState<Record<string, Record<string, unknown>>>(
+    (initial?.params as Record<string, Record<string, unknown>>) ?? {},
+  );
   const [contentType, setContentType] = useState<string | undefined>();
-  const [bodyData, setBodyData] = useState<unknown>(undefined);
-  const [rawBody, setRawBody] = useState('');
+  const [bodyData, setBodyData] = useState<unknown>(
+    typeof initial?.body === 'string' ? undefined : initial?.body,
+  );
+  const [rawBody, setRawBody] = useState(typeof initial?.body === 'string' ? initial.body : '');
   const [bodyMode, setBodyMode] = useState<'form' | 'raw'>('form');
   const [preview, setPreview] = useState<string>('');
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [missingRefs, setMissingRefs] = useState<string[]>([]);
   const [result, setResult] = useState<ExecuteResult | null>(null);
   const [sending, setSending] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
@@ -53,7 +70,7 @@ export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfi
       .getOperation(apiId, summary.id)
       .then((d) => {
         setDetail(d);
-        setContentType(d.body?.variants[0]?.contentType);
+        setContentType(initial?.contentType ?? d.body?.variants[0]?.contentType);
       })
       .catch((e) => setLoadError((e as Error).message));
   }, [apiId, summary.id]);
@@ -93,6 +110,7 @@ export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfi
         });
         setPreview(r.request.raw);
         setPreviewError(null);
+        setMissingRefs(r.missing ?? []);
       } catch (e) {
         setPreviewError((e as Error).message);
       }
@@ -100,6 +118,41 @@ export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfi
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail, paramData, bodyData, rawBody, bodyMode, contentType, loadedApi.entry]);
+
+  async function saveRequest() {
+    const name = window.prompt('Name this request:', `${detail?.method} ${detail?.path}`);
+    if (!name) return;
+    try {
+      await api.saveRequest({
+        name,
+        apiId,
+        opId: summary.id,
+        params: paramData,
+        contentType,
+        body: effectiveBody(),
+      });
+      onWorkspaceChanged();
+    } catch (e) {
+      setPreviewError((e as Error).message);
+    }
+  }
+
+  async function extractToVariable(path: string, varName: string): Promise<string> {
+    const bodyText = result?.response?.bodyText;
+    if (!bodyText) throw new Error('No response body to extract from');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(bodyText);
+    } catch {
+      throw new Error('Response body is not JSON');
+    }
+    const value = getPath(parsed, path);
+    if (value === undefined) throw new Error(`Nothing found at "${path}"`);
+    const str = typeof value === 'string' ? value : JSON.stringify(value);
+    await api.putVariable(varName, str);
+    onWorkspaceChanged();
+    return str;
+  }
 
   async function send() {
     setSending(true);
@@ -230,10 +283,18 @@ export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfi
           </section>
         )}
 
+        {missingRefs.length > 0 && (
+          <div className="banner warn small">
+            Unresolved: {missingRefs.map((m) => `{{${m}}}`).join(', ')} — define the variable or
+            secret before sending.
+          </div>
+        )}
+
         <div className="send-row">
           <button className="send" onClick={send} disabled={sending}>
             {sending ? 'Sending…' : `Send ${detail.method}`}
           </button>
+          <button onClick={saveRequest}>Save request…</button>
           {detail.responses.length > 0 && (
             <span className="expected">
               expects: {detail.responses.map((r) => r.status).join(', ')}
@@ -242,7 +303,12 @@ export function OperationView({ apiId, loadedApi, summary, vaultEnabled, onConfi
         </div>
       </div>
 
-      <HttpPane preview={preview} previewError={previewError} result={result} />
+      <HttpPane
+        preview={preview}
+        previewError={previewError}
+        result={result}
+        onExtract={result?.response ? extractToVariable : undefined}
+      />
     </div>
   );
 }

@@ -7,6 +7,12 @@ export interface ApiInfo {
   description?: string;
 }
 
+export interface OAuthFlow {
+  authorizationUrl?: string;
+  tokenUrl?: string;
+  scopes?: Record<string, string>;
+}
+
 export interface SecurityScheme {
   type: 'apiKey' | 'http' | 'oauth2' | 'openIdConnect' | string;
   description?: string;
@@ -16,6 +22,8 @@ export interface SecurityScheme {
   in?: string;
   /** http: 'bearer' | 'basic' | ... */
   scheme?: string;
+  /** oauth2: flow name (clientCredentials, authorizationCode, ...) -> details */
+  flows?: Record<string, OAuthFlow>;
 }
 
 /** One entry of an OpenAPI security requirement: schemeKey -> scopes. */

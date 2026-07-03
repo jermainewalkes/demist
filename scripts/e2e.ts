@@ -42,6 +42,7 @@ function echoSpec(baseUrl: string) {
           parameters: [
             { name: 'thing', in: 'path', required: true, schema: { type: 'string' } },
             { name: 'verbose', in: 'query', schema: { type: 'boolean' } },
+            { name: 'X-Extra', in: 'header', schema: { type: 'string' } },
           ],
           requestBody: {
             required: true,
@@ -67,26 +68,75 @@ function echoSpec(baseUrl: string) {
   };
 }
 
-async function startEcho(): Promise<{ server: Server; base: string; captured: Captured[] }> {
+function oauthSpec(baseUrl: string) {
+  return {
+    openapi: '3.0.3',
+    info: { title: 'OAuth Echo API', version: '1.0.0' },
+    servers: [{ url: baseUrl }],
+    paths: {
+      '/guarded': {
+        get: {
+          operationId: 'getGuarded',
+          responses: { '200': { description: 'OK' } },
+          security: [{ oauth: [] }],
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        oauth: {
+          type: 'oauth2',
+          flows: {
+            clientCredentials: { tokenUrl: `${baseUrl}/token`, scopes: { read: 'Read' } },
+          },
+        },
+      },
+    },
+  };
+}
+
+const OAUTH_TOKEN = 'tok-e2e-ISSUED-SECRET';
+
+async function startEcho(): Promise<{
+  server: Server;
+  base: string;
+  captured: Captured[];
+  tokenRequests: string[];
+}> {
   const captured: Captured[] = [];
+  const tokenRequests: string[] = [];
   const server = createServer((req, res) => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
       const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+      res.setHeader('content-type', 'application/json');
       if (req.url === '/openapi.json') {
-        res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify(echoSpec(base)));
         return;
       }
+      if (req.url === '/oauth-spec.json') {
+        res.end(JSON.stringify(oauthSpec(base)));
+        return;
+      }
+      if (req.url === '/token') {
+        tokenRequests.push(body);
+        res.end(JSON.stringify({ access_token: OAUTH_TOKEN, expires_in: 3600 }));
+        return;
+      }
       captured.push({ method: req.method!, url: req.url!, headers: req.headers, body });
-      res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ echoed: true, sawKey: req.headers['x-echo-key'] }));
+      res.end(
+        JSON.stringify({
+          echoed: true,
+          sawKey: req.headers['x-echo-key'],
+          sawAuth: req.headers.authorization,
+        }),
+      );
     });
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  return { server, base, captured };
+  return { server, base, captured, tokenRequests };
 }
 
 async function startDemist(root: string): Promise<ChildProcess> {
@@ -125,7 +175,7 @@ async function demist<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const root = mkdtempSync(join(tmpdir(), 'demist-e2e-'));
-const { server: echo, base: echoBase, captured } = await startEcho();
+const { server: echo, base: echoBase, captured, tokenRequests } = await startEcho();
 let child: ChildProcess | undefined;
 
 try {
@@ -195,6 +245,118 @@ try {
   check('workspace contains no secret', !ws.includes(SECRET));
   const vaultRaw = readFileSync(join(root, '.demist', 'vault.json'), 'utf8');
   check('vault file contains no plaintext secret', !vaultRaw.includes(SECRET));
+
+  // ---- M2: variables + secret refs -------------------------------------
+  console.log('\ne2e: M2 — variables, secret refs, saved requests, oauth2');
+  await demist('/api/variables/thing_name', {
+    method: 'PUT',
+    body: JSON.stringify({ value: 'from-variable' }),
+  });
+  const varRun = await demist<{ request: { raw: string }; response: { status: number } }>(
+    '/api/execute',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        apiId: added.id,
+        opId: 'echoThing',
+        params: {
+          path: { thing: '{{var.thing_name}}' },
+          header: { 'X-Extra': '{{secret.echo_key_secret}}' },
+        },
+        contentType: 'application/json',
+        body: { note: 'var run' },
+      }),
+    },
+  );
+  const varHit = captured[captured.length - 1];
+  check('variable substituted into path', varHit.url.startsWith('/anything/from-variable'));
+  check('secret ref resolved on the wire', varHit.headers['x-extra'] === SECRET);
+  check('secret ref masked in transcript', !JSON.stringify(varRun).includes(SECRET));
+
+  const missingRun = await fetch(`http://127.0.0.1:${DEMIST_PORT}/api/execute`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      apiId: added.id,
+      opId: 'echoThing',
+      params: { path: { thing: '{{var.does_not_exist}}' } },
+    }),
+  });
+  check('unresolved reference rejected with 400', missingRun.status === 400);
+
+  // ---- M2: saved requests ----------------------------------------------
+  const saved = await demist<{ id: string }>('/api/requests', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Echo the variable',
+      apiId: added.id,
+      opId: 'echoThing',
+      params: { path: { thing: '{{var.thing_name}}' } },
+      contentType: 'application/json',
+      body: { note: 'saved' },
+    }),
+  });
+  const wsAfterSave = await demist<{ requests: { id: string }[]; variables: Record<string, string> }>(
+    '/api/workspace',
+  );
+  check('saved request persisted', wsAfterSave.requests.some((r) => r.id === saved.id));
+  check('variable persisted in workspace', wsAfterSave.variables.thing_name === 'from-variable');
+  const wsYaml = readFileSync(join(root, 'demist.workspace.yaml'), 'utf8');
+  check('saved request survives in YAML', wsYaml.includes('Echo the variable'));
+
+  // ---- M2: oauth2 client credentials ------------------------------------
+  const oauthAdded = await demist<{ id: string }>('/api/apis', {
+    method: 'POST',
+    body: JSON.stringify({ url: `${echoBase}/oauth-spec.json` }),
+  });
+  await demist('/api/secrets/oauth_client_secret', {
+    method: 'PUT',
+    body: JSON.stringify({ value: 'cc-client-SECRET' }),
+  });
+  await demist(`/api/apis/${oauthAdded.id}/config`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      auth: {
+        scheme: 'oauth',
+        secret: 'oauth_client_secret',
+        mode: 'client_credentials',
+        clientId: 'demist-e2e',
+        scopes: ['read'],
+      },
+    }),
+  });
+
+  const oauthPayload = { apiId: oauthAdded.id, opId: 'getGuarded' };
+  const dryOauth = await demist<{ request: { raw: string } }>('/api/execute', {
+    method: 'POST',
+    body: JSON.stringify({ ...oauthPayload, dryRun: true }),
+  });
+  check('oauth dry run fetches no token', tokenRequests.length === 0);
+  check('oauth dry run previews masked bearer', dryOauth.request.raw.includes('authorization: Bearer ••••••••'));
+
+  const oauth1 = await demist<{ response: { status: number } }>('/api/execute', {
+    method: 'POST',
+    body: JSON.stringify(oauthPayload),
+  });
+  const oauth2 = await demist<{ response: { status: number } }>('/api/execute', {
+    method: 'POST',
+    body: JSON.stringify(oauthPayload),
+  });
+  const guardedHits = captured.filter((c) => c.url === '/guarded');
+  check('both oauth calls succeeded', oauth1.response.status === 200 && oauth2.response.status === 200);
+  check('bearer token actually sent', guardedHits.every((h) => h.headers.authorization === `Bearer ${OAUTH_TOKEN}`));
+  check('token fetched once, cached for the second call', tokenRequests.length === 1);
+  const tokenForm = new URLSearchParams(tokenRequests[0] ?? '');
+  check(
+    'token request carried client credentials + scope',
+    tokenForm.get('client_id') === 'demist-e2e' &&
+      tokenForm.get('client_secret') === 'cc-client-SECRET' &&
+      tokenForm.get('scope') === 'read',
+  );
+  check(
+    'token and client secret masked client-side',
+    !JSON.stringify(oauth1).includes(OAUTH_TOKEN) && !JSON.stringify(oauth1).includes('cc-client-SECRET'),
+  );
 } finally {
   child?.kill();
   echo.close();

@@ -4,10 +4,28 @@ import yaml from 'js-yaml';
 export interface AuthProfile {
   /** Key of a securityScheme in the API's spec. */
   scheme: string;
-  /** Vault entry name holding the secret value (API key, token, or password). */
+  /** Vault entry name holding the secret value (API key, token, password, or client secret). */
   secret?: string;
   /** For HTTP basic auth. */
   username?: string;
+  /** For oauth2 schemes: paste-a-token (default) or automated client credentials. */
+  mode?: 'token' | 'client_credentials';
+  clientId?: string;
+  scopes?: string[];
+}
+
+export interface SavedRequest {
+  id: string;
+  name: string;
+  apiId: string;
+  opId: string;
+  params?: {
+    path?: Record<string, unknown>;
+    query?: Record<string, unknown>;
+    header?: Record<string, unknown>;
+  };
+  contentType?: string;
+  body?: unknown;
 }
 
 export interface WorkspaceApi {
@@ -22,6 +40,9 @@ export interface WorkspaceApi {
 export interface Workspace {
   version: 1;
   apis: WorkspaceApi[];
+  /** Plain (non-secret) values usable as {{var.name}} in any request field. */
+  variables: Record<string, string>;
+  requests: SavedRequest[];
 }
 
 /**
@@ -32,11 +53,20 @@ export class WorkspaceStore {
   constructor(private readonly filePath: string) {}
 
   read(): Workspace {
-    if (!existsSync(this.filePath)) return { version: 1, apis: [] };
+    const empty: Workspace = { version: 1, apis: [], variables: {}, requests: [] };
+    if (!existsSync(this.filePath)) return empty;
     const doc = yaml.load(readFileSync(this.filePath, 'utf8'));
-    if (typeof doc !== 'object' || doc === null) return { version: 1, apis: [] };
+    if (typeof doc !== 'object' || doc === null) return empty;
     const ws = doc as Partial<Workspace>;
-    return { version: 1, apis: Array.isArray(ws.apis) ? ws.apis : [] };
+    return {
+      version: 1,
+      apis: Array.isArray(ws.apis) ? ws.apis : [],
+      variables:
+        typeof ws.variables === 'object' && ws.variables !== null && !Array.isArray(ws.variables)
+          ? (ws.variables as Record<string, string>)
+          : {},
+      requests: Array.isArray(ws.requests) ? ws.requests : [],
+    };
   }
 
   write(ws: Workspace): void {

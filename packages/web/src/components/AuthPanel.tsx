@@ -23,12 +23,20 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
   const [secretName, setSecretName] = useState(current?.secret ?? `${apiId}_secret`);
   const [secretValue, setSecretValue] = useState('');
   const [username, setUsername] = useState(current?.username ?? '');
+  const [mode, setMode] = useState<'token' | 'client_credentials'>(current?.mode ?? 'token');
+  const [clientId, setClientId] = useState(current?.clientId ?? '');
+  const [scopes, setScopes] = useState((current?.scopes ?? []).join(' '));
   const [server, setServer] = useState(loadedApi.entry.server ?? loadedApi.index.servers[0] ?? '');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const scheme = schemes[schemeKey];
   const isBasic = scheme?.type === 'http' && scheme.scheme === 'basic';
+  const isOauth = scheme?.type === 'oauth2' || scheme?.type === 'openIdConnect';
+  const ccTokenUrl =
+    scheme?.flows?.clientCredentials?.tokenUrl ??
+    Object.values(scheme?.flows ?? {}).find((f) => f.tokenUrl)?.tokenUrl;
+  const useClientCredentials = isOauth && mode === 'client_credentials';
 
   async function save() {
     setSaving(true);
@@ -40,7 +48,16 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
       await api.putConfig(apiId, {
         server: server || undefined,
         auth: schemeKey
-          ? { scheme: schemeKey, secret: secretName, username: isBasic ? username : undefined }
+          ? {
+              scheme: schemeKey,
+              secret: secretName,
+              username: isBasic ? username : undefined,
+              mode: isOauth ? mode : undefined,
+              clientId: useClientCredentials ? clientId : undefined,
+              scopes: useClientCredentials
+                ? scopes.split(/\s+/).filter((s) => s !== '')
+                : undefined,
+            }
           : null,
       });
       onSaved();
@@ -89,11 +106,42 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
               ))}
             </select>
           </label>
-          {(scheme?.type === 'oauth2' || scheme?.type === 'openIdConnect') && (
-            <p className="hint">
-              OAuth2 flows aren't automated yet — paste an access token below and demist sends it
-              as a Bearer header.
-            </p>
+          {isOauth && (
+            <>
+              <label>
+                OAuth2 mode
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as 'token' | 'client_credentials')}
+                >
+                  <option value="token">paste an access token</option>
+                  <option value="client_credentials" disabled={!ccTokenUrl}>
+                    client credentials{ccTokenUrl ? '' : ' (spec declares no tokenUrl)'}
+                  </option>
+                </select>
+              </label>
+              {useClientCredentials && (
+                <>
+                  <p className="hint">
+                    demist will fetch tokens from <code>{ccTokenUrl}</code> and cache them until
+                    expiry.
+                  </p>
+                  <label>
+                    Client ID
+                    <input value={clientId} onChange={(e) => setClientId(e.target.value)} />
+                  </label>
+                  <label>
+                    Scopes (space-separated, optional)
+                    <input value={scopes} onChange={(e) => setScopes(e.target.value)} />
+                  </label>
+                </>
+              )}
+              {!useClientCredentials && (
+                <p className="hint">
+                  The pasted token is stored in the vault and sent as a Bearer header.
+                </p>
+              )}
+            </>
           )}
           {isBasic && (
             <label>
@@ -106,7 +154,7 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
             <input value={secretName} onChange={(e) => setSecretName(e.target.value)} />
           </label>
           <label>
-            Secret value {isBasic ? '(password)' : '(key / token)'}
+            Secret value {isBasic ? '(password)' : useClientCredentials ? '(client secret)' : '(key / token)'}
             <input
               type="password"
               value={secretValue}

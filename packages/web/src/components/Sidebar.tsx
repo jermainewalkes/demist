@@ -1,18 +1,31 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { LoadedApi } from '../App';
-import type { OperationSummary, WorkspaceApi } from '../types';
+import type { OperationSummary, SavedRequest, WorkspaceApi } from '../types';
 
 interface Props {
   apis: WorkspaceApi[];
+  variables: Record<string, string>;
+  requests: SavedRequest[];
   loaded: Record<string, LoadedApi>;
   selected: { apiId: string; opId: string } | null;
   onLoadApi: (id: string) => Promise<LoadedApi>;
   onSelect: (apiId: string, opId: string) => void;
+  onSelectSaved: (saved: SavedRequest) => void;
   onWorkspaceChanged: () => void;
 }
 
-export function Sidebar({ apis, loaded, selected, onLoadApi, onSelect, onWorkspaceChanged }: Props) {
+export function Sidebar({
+  apis,
+  variables,
+  requests,
+  loaded,
+  selected,
+  onLoadApi,
+  onSelect,
+  onSelectSaved,
+  onWorkspaceChanged,
+}: Props) {
   const [specUrl, setSpecUrl] = useState('');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -118,7 +131,112 @@ export function Sidebar({ apis, loaded, selected, onLoadApi, onSelect, onWorkspa
           </div>
         );
       })}
+
+      {requests.length > 0 && (
+        <SavedRequests
+          requests={requests}
+          onSelectSaved={onSelectSaved}
+          onWorkspaceChanged={onWorkspaceChanged}
+        />
+      )}
+      <VariablesPanel variables={variables} onWorkspaceChanged={onWorkspaceChanged} />
     </aside>
+  );
+}
+
+function SavedRequests({
+  requests,
+  onSelectSaved,
+  onWorkspaceChanged,
+}: {
+  requests: SavedRequest[];
+  onSelectSaved: (saved: SavedRequest) => void;
+  onWorkspaceChanged: () => void;
+}) {
+  return (
+    <div className="side-section">
+      <h4>Saved requests</h4>
+      {requests.map((r) => (
+        <div key={r.id} className="op-row saved" onClick={() => onSelectSaved(r)} title={`${r.apiId} · ${r.opId}`}>
+          <span className="path">{r.name}</span>
+          <button
+            className="remove"
+            title="Delete saved request"
+            onClick={async (e) => {
+              e.stopPropagation();
+              await api.deleteRequest(r.id);
+              onWorkspaceChanged();
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function VariablesPanel({
+  variables,
+  onWorkspaceChanged,
+}: {
+  variables: Record<string, string>;
+  onWorkspaceChanged: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const entries = Object.entries(variables).sort(([a], [b]) => a.localeCompare(b));
+
+  async function add() {
+    if (!name.trim()) return;
+    try {
+      await api.putVariable(name.trim(), value);
+      setName('');
+      setValue('');
+      setError(null);
+      onWorkspaceChanged();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="side-section">
+      <h4>Variables</h4>
+      {entries.length === 0 && (
+        <p className="hint">
+          None yet. Use them anywhere as <code>{'{{var.name}}'}</code>.
+        </p>
+      )}
+      {entries.map(([n, v]) => (
+        <div key={n} className="var-row" title={v}>
+          <code className="var-name">{n}</code>
+          <span className="var-value">{v}</span>
+          <button
+            className="remove"
+            title="Delete variable"
+            onClick={async () => {
+              await api.deleteVariable(n);
+              onWorkspaceChanged();
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <div className="var-add">
+        <input placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input
+          placeholder="value"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <button onClick={add} disabled={!name.trim()}>+</button>
+      </div>
+      {error && <div className="banner error small">{error}</div>}
+    </div>
   );
 }
 

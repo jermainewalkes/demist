@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { Sidebar } from './components/Sidebar';
 import { OperationView } from './components/OperationView';
-import type { ApiIndex, WorkspaceApi } from './types';
+import type { ApiIndex, SavedRequest, WorkspaceApi } from './types';
 
 export interface LoadedApi {
   entry: WorkspaceApi;
@@ -11,15 +11,21 @@ export interface LoadedApi {
 
 export function App() {
   const [apis, setApis] = useState<WorkspaceApi[]>([]);
+  const [variables, setVariables] = useState<Record<string, string>>({});
+  const [requests, setRequests] = useState<SavedRequest[]>([]);
   const [vaultEnabled, setVaultEnabled] = useState(false);
   const [loaded, setLoaded] = useState<Record<string, LoadedApi>>({});
   const [selected, setSelected] = useState<{ apiId: string; opId: string } | null>(null);
+  const [restore, setRestore] = useState<SavedRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const restoreCounter = useRef(0);
 
   const refreshWorkspace = useCallback(async () => {
     try {
       const ws = await api.workspace();
       setApis(ws.apis);
+      setVariables(ws.variables);
+      setRequests(ws.requests);
       setVaultEnabled(ws.vaultEnabled);
     } catch (e) {
       setError(`Cannot reach the demist server — is it running? (${(e as Error).message})`);
@@ -35,6 +41,28 @@ export function App() {
     setLoaded((prev) => ({ ...prev, [id]: result }));
     return result;
   }, []);
+
+  const selectOperation = useCallback((apiId: string, opId: string) => {
+    setRestore(null);
+    setSelected({ apiId, opId });
+  }, []);
+
+  const selectSavedRequest = useCallback(
+    async (saved: SavedRequest) => {
+      if (!loaded[saved.apiId]) {
+        try {
+          await loadApi(saved.apiId);
+        } catch (e) {
+          setError((e as Error).message);
+          return;
+        }
+      }
+      restoreCounter.current++;
+      setRestore(saved);
+      setSelected({ apiId: saved.apiId, opId: saved.opId });
+    },
+    [loaded, loadApi],
+  );
 
   const selectedApi = selected ? loaded[selected.apiId] : undefined;
   const selectedOp = selectedApi?.index.operations.find((o) => o.id === selected?.opId);
@@ -52,21 +80,26 @@ export function App() {
       <div className="columns">
         <Sidebar
           apis={apis}
+          variables={variables}
+          requests={requests}
           loaded={loaded}
           selected={selected}
           onLoadApi={loadApi}
-          onSelect={(apiId, opId) => setSelected({ apiId, opId })}
+          onSelect={selectOperation}
+          onSelectSaved={selectSavedRequest}
           onWorkspaceChanged={refreshWorkspace}
         />
         <main className="main">
           {selectedApi && selectedOp ? (
             <OperationView
-              key={`${selected!.apiId}:${selected!.opId}`}
+              key={`${selected!.apiId}:${selected!.opId}:${restore ? `${restore.id}#${restoreCounter.current}` : ''}`}
               apiId={selected!.apiId}
               loadedApi={selectedApi}
               summary={selectedOp}
+              initial={restore ?? undefined}
               vaultEnabled={vaultEnabled}
               onConfigChanged={() => loadApi(selected!.apiId)}
+              onWorkspaceChanged={refreshWorkspace}
             />
           ) : (
             <div className="empty">
@@ -75,6 +108,10 @@ export function App() {
                 Add an API by pasting an OpenAPI/Swagger spec URL on the left, then pick an
                 operation. demist generates the form from the spec — and always shows you the
                 exact HTTP it sends.
+              </p>
+              <p>
+                Tip: any field can reference workspace variables as <code>{'{{var.name}}'}</code>{' '}
+                or vault secrets as <code>{'{{secret.name}}'}</code>.
               </p>
             </div>
           )}
