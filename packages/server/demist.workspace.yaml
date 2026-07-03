@@ -4,3 +4,11 @@ apis:
     name: Swagger Petstore - OpenAPI 3.0
     spec:
       url: https://petstore3.swagger.io/api/v3/openapi.json
+  - id: open-meteo-weather-forecast-api
+    name: Open-Meteo Weather Forecast API
+    spec:
+      url: https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi/forecast.yml
+    server: https://api.open-meteo.com
+variables:
+  timezone_abbreviation: GMT
+requests: []

@@ -265,6 +265,8 @@ button.link.active { text-decoration: underline; }
   font-size: 12px;
 }
 .var-name { color: var(--accent); }
+.var-name.insertable { cursor: pointer; border-radius: 3px; padding: 0 2px; }
+.var-name.insertable:hover { background: rgba(94, 173, 242, 0.18); outline: 1px solid var(--accent); }
 .var-value {
   flex: 1;
   color: var(--text-dim);

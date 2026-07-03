@@ -37,6 +37,22 @@ function groupSchema(params: ParameterDetail[]): RJSFSchema {
   } as RJSFSchema;
 }
 
+/**
+ * Numeric parameters render as text fields, not number spinners: params are
+ * strings on the wire anyway, and a number input would reject {{var.x}}.
+ */
+function groupUiSchema(params: ParameterDetail[]): UiSchema {
+  const ui: UiSchema = { ...NO_SUBMIT };
+  for (const p of params) {
+    const t = p.schema.type;
+    const numeric = Array.isArray(t)
+      ? t.some((x) => x === 'integer' || x === 'number')
+      : t === 'integer' || t === 'number';
+    if (numeric) ui[p.name] = { 'ui:widget': 'text' };
+  }
+  return ui;
+}
+
 export function OperationView({
   apiId,
   loadedApi,
@@ -230,7 +246,7 @@ export function OperationView({
             <Form
               schema={groupSchema(g.params)}
               validator={validator}
-              uiSchema={NO_SUBMIT}
+              uiSchema={groupUiSchema(g.params)}
               formData={paramData[g.params[0].in]}
               liveValidate={false}
               showErrorList={false}

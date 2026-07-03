@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { api } from '../api';
+import { insertIntoLastField } from '../fieldInsert';
 import type { LoadedApi } from '../App';
 import type { OperationSummary, SavedRequest, WorkspaceApi } from '../types';
 
@@ -212,7 +213,16 @@ function VariablesPanel({
   const [name, setName] = useState('');
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout>>();
   const entries = Object.entries(variables).sort(([a], [b]) => a.localeCompare(b));
+
+  function insert(varName: string) {
+    const ok = insertIntoLastField(`{{var.${varName}}}`);
+    clearTimeout(hintTimer.current);
+    setHint(ok ? null : 'Click into a request field first, then insert.');
+    if (!ok) hintTimer.current = setTimeout(() => setHint(null), 3000);
+  }
 
   async function add() {
     if (!name.trim()) return;
@@ -237,8 +247,21 @@ function VariablesPanel({
       )}
       {entries.map(([n, v]) => (
         <div key={n} className="var-row" title={v}>
-          <code className="var-name">{n}</code>
+          <code
+            className="var-name insertable"
+            title={`Insert {{var.${n}}} into the focused field`}
+            onClick={() => insert(n)}
+          >
+            {n}
+          </code>
           <span className="var-value">{v}</span>
+          <button
+            className="mini"
+            title={`Insert {{var.${n}}} into the focused field`}
+            onClick={() => insert(n)}
+          >
+            ⊕
+          </button>
           <button
             className="remove"
             title="Delete variable"
@@ -251,6 +274,7 @@ function VariablesPanel({
           </button>
         </div>
       ))}
+      {hint && <div className="banner warn small">{hint}</div>}
       <div className="var-add">
         <input placeholder="name" value={name} onChange={(e) => setName(e.target.value)} />
         <input

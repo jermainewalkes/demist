@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api';
+import { initFieldTracking } from './fieldInsert';
 import { Sidebar } from './components/Sidebar';
 import { OperationView } from './components/OperationView';
 import { CapabilityMap } from './components/CapabilityMap';
@@ -41,6 +42,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    initFieldTracking();
     void refreshWorkspace();
   }, [refreshWorkspace]);
 
