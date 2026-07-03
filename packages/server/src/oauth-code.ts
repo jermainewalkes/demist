@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { describeError } from '@demist/core';
 import type { Vault } from './vault.js';
 
 /**
@@ -136,7 +137,7 @@ export class AuthCodeManager {
         signal: AbortSignal.timeout(30_000),
       });
     } catch (e) {
-      throw new Error(`Token endpoint unreachable (${cfg.tokenUrl}): ${e instanceof Error ? e.message : e}`);
+      throw new Error(`Token endpoint unreachable (${cfg.tokenUrl}): ${describeError(e)}`);
     }
     const text = await res.text();
     if (!res.ok) throw new Error(`Token endpoint returned HTTP ${res.status}: ${text.slice(0, 300)}`);

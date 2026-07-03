@@ -1,3 +1,5 @@
+import { describeError } from '@demist/core';
+
 /**
  * OAuth2 client-credentials: fetch and cache access tokens per API.
  * Credentials go in the form body (the most widely accepted variant);
@@ -41,7 +43,7 @@ export class TokenManager {
         signal: AbortSignal.timeout(30_000),
       });
     } catch (e) {
-      throw new Error(`Token endpoint unreachable (${tokenUrl}): ${e instanceof Error ? e.message : e}`);
+      throw new Error(`Token endpoint unreachable (${tokenUrl}): ${describeError(e)}`);
     }
     const text = await res.text();
     if (!res.ok) {

@@ -176,3 +176,23 @@ describe('large specs', () => {
     },
   );
 });
+
+describe('describeError', () => {
+  it('surfaces the cause chain that undici hides', async () => {
+    const { describeError } = await import('../src/index.js');
+    const inner = new Error('getaddrinfo ENOTFOUND raw.githubusercontent.com');
+    const outer = new Error('fetch failed');
+    (outer as { cause?: unknown }).cause = inner;
+    expect(describeError(outer)).toBe('fetch failed — getaddrinfo ENOTFOUND raw.githubusercontent.com');
+    expect(describeError(new Error('plain'))).toBe('plain');
+  });
+
+  it('reports unreachable hosts with the real reason', async () => {
+    const { fetchSpec, SpecError } = await import('../src/index.js');
+    const err = await fetchSpec('https://definitely-not-a-real-host-demist.invalid/spec.json', 3000)
+      .then(() => null)
+      .catch((e) => e as Error);
+    expect(err).toBeInstanceOf(SpecError);
+    expect(err!.message).toMatch(/ENOTFOUND|EAI_AGAIN|getaddrinfo/i);
+  });
+});

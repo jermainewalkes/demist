@@ -1,5 +1,5 @@
 import yaml from 'js-yaml';
-import { SpecError } from './types.js';
+import { describeError, SpecError } from './types.js';
 
 const MAX_SPEC_BYTES = 30 * 1024 * 1024;
 
@@ -39,7 +39,7 @@ export async function fetchSpec(url: string, timeoutMs = 30_000): Promise<Record
       redirect: 'follow',
     });
   } catch (e) {
-    throw new SpecError(`Could not fetch spec: ${e instanceof Error ? e.message : e}`);
+    throw new SpecError(`Could not fetch spec: ${describeError(e)}`);
   }
   if (!res.ok) {
     throw new SpecError(`Spec fetch failed: HTTP ${res.status} from ${url}`);

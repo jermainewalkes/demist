@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import {
+  describeError,
   diffSpecs,
   fetchSpec,
   getOperationDetail,
@@ -521,7 +522,7 @@ export function registerRoutes(app: FastifyInstance, services: Services): void {
     } catch (e) {
       return reply.code(502).send({
         request,
-        error: `Request failed: ${e instanceof Error ? e.message : String(e)}`,
+        error: `Request failed: ${describeError(e)}`,
       });
     }
   });

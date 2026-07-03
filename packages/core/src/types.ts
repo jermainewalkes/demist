@@ -85,3 +85,21 @@ export class SpecError extends Error {
     this.name = 'SpecError';
   }
 }
+
+/**
+ * Render an error including its `cause` chain. Node's fetch (undici) reports
+ * bare "fetch failed" and hides the useful part (ENOTFOUND, ETIMEDOUT, TLS…)
+ * in error.cause — surfacing it is the difference between a debuggable message
+ * and a shrug.
+ */
+export function describeError(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  const parts = [e.message];
+  let cause: unknown = (e as { cause?: unknown }).cause;
+  let depth = 0;
+  while (cause !== undefined && cause !== null && depth++ < 4) {
+    parts.push(cause instanceof Error ? cause.message : String(cause));
+    cause = (cause as { cause?: unknown }).cause;
+  }
+  return [...new Set(parts)].join(' — ');
+}
