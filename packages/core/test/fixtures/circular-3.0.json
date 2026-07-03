@@ -1,0 +1,37 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Tree API", "version": "0.1.0" },
+  "servers": [{ "url": "https://tree.example.com" }],
+  "paths": {
+    "/nodes": {
+      "post": {
+        "operationId": "createNode",
+        "tags": ["nodes"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TreeNode" }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Created" } }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TreeNode": {
+        "type": "object",
+        "properties": {
+          "label": { "type": "string", "nullable": true },
+          "children": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TreeNode" }
+          },
+          "parent": { "$ref": "#/components/schemas/TreeNode" }
+        }
+      }
+    }
+  }
+}

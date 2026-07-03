@@ -1,0 +1,27 @@
+{
+  "openapi": "3.0.0",
+  "info": { "title": "Half-broken API", "version": "0.0.1" },
+  "paths": {
+    "/ok": {
+      "get": {
+        "operationId": "worksFine",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/bad": "this path item is a string, not an object",
+    "/dangling": {
+      "get": {
+        "operationId": "danglingRef",
+        "parameters": [{ "$ref": "#/components/parameters/DoesNotExist" }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Missing" }
+            }
+          }
+        },
+        "responses": { "200": { "description": "OK" } }
+      }
+    }
+  }
+}
