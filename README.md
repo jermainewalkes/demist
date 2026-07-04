@@ -22,8 +22,6 @@ any spec into a usable console.
 
 ## Status
 
-Early but capable — milestones 1–3 are done:
-
 - [x] Generic spec engine: Swagger 2.0 / OpenAPI 3.0 / 3.1, JSON or YAML, by URL or file
 - [x] Lazy, cycle-safe `$ref` resolution (large specs like GitHub's ~10 MB one stay fast)
 - [x] Request proxy with raw HTTP transcripts and secret masking
@@ -101,6 +99,11 @@ npm test            # unit tests (fixture corpus of real and broken specs)
 npm run e2e         # end-to-end: proves the proxy sends exactly what the transcript claims
 npm run typecheck
 ```
+
+## Support
+
+demist is free and MIT-licensed. If it saves you time, you can support its development on
+[Ko-Fi](https://ko-fi.com/jwalkes) ☕ — entirely optional, always appreciated.
 
 ## Contributing & security
 
