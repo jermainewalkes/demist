@@ -80,6 +80,7 @@ export function Sidebar({
 
   return (
     <aside className="sidebar">
+      <div className="sidebar-scroll">
       <div className="add-api">
         <input
           value={specUrl}
@@ -167,6 +168,16 @@ export function Sidebar({
         />
       )}
       <VariablesPanel variables={variables} onWorkspaceChanged={onWorkspaceChanged} />
+      </div>
+      <a
+        className="kofi-link"
+        href="https://ko-fi.com/jwalkes"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="demist is free and open source — support its development"
+      >
+        ☕ Support us on Ko-Fi
+      </a>
     </aside>
   );
 }
