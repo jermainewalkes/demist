@@ -397,7 +397,14 @@ fieldset legend {
 fieldset fieldset { border-left: 2px solid var(--border); padding-left: 12px; margin: 6px 0; }
 .array-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
 .array-item > div:first-child { flex: 1; }
-.array-item-toolbox button, .btn-add { font-size: 12px; padding: 3px 10px; }
+.rjsf-icon-btn {
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 8px;
+  color: var(--text-dim);
+}
+.rjsf-icon-btn:hover:not(:disabled) { color: var(--text); }
+.rjsf-add-btn { font-size: 12px; padding: 4px 12px; color: var(--accent); }
 .text-danger { color: #ffb4ab; font-size: 11px; list-style: none; padding-left: 0; }
 .required { color: var(--delete); margin-left: 2px; }
 .panel-danger, .error-detail { color: #ffb4ab; font-size: 11px; }

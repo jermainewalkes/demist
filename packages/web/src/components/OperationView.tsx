@@ -6,6 +6,7 @@ import { api } from '../api';
 import type { LoadedApi } from '../App';
 import { AuthPanel } from './AuthPanel';
 import { HttpPane } from './HttpPane';
+import { buttonTemplates } from './rjsfButtons';
 import { getPath } from '../util';
 import type {
   ExecuteResult,
@@ -247,6 +248,7 @@ export function OperationView({
               schema={groupSchema(g.params)}
               validator={validator}
               uiSchema={groupUiSchema(g.params)}
+              templates={{ ButtonTemplates: buttonTemplates }}
               formData={paramData[g.params[0].in]}
               liveValidate={false}
               showErrorList={false}
@@ -282,6 +284,7 @@ export function OperationView({
                 schema={(variant?.schema ?? {}) as RJSFSchema}
                 validator={validator}
                 uiSchema={NO_SUBMIT}
+                templates={{ ButtonTemplates: buttonTemplates }}
                 formData={bodyData}
                 liveValidate={false}
                 showErrorList={false}
