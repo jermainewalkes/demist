@@ -9,6 +9,5 @@ apis:
     spec:
       url: https://raw.githubusercontent.com/open-meteo/open-meteo/main/openapi/forecast.yml
     server: https://api.open-meteo.com
-variables:
-  timezone_abbreviation: GMT
+variables: {}
 requests: []

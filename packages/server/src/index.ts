@@ -25,14 +25,20 @@ registerRoutes(app, {
   authCode: new AuthCodeManager(vault, `http://127.0.0.1:${port}/api/oauth/callback`),
 });
 
-// Serve the built UI when it exists (production mode); in dev, Vite serves it.
-const webDist = resolve(dirname(fileURLToPath(import.meta.url)), '../../web/dist');
-if (existsSync(webDist)) {
+// Serve the built UI when it exists; in dev, Vite serves it instead.
+// Candidates: next to the packaged bundle (dist/web), or the monorepo build.
+const here = dirname(fileURLToPath(import.meta.url));
+const webDist = [join(here, 'web'), resolve(here, '../../web/dist')].find(existsSync);
+if (webDist) {
   await app.register(fastifyStatic, { root: webDist });
 }
 
 await app.listen({ port, host });
 app.log.info(`demist workspace root: ${root}`);
+if (webDist) app.log.info(`demist UI: http://${host}:${port}`);
 if (!process.env.DEMIST_VAULT_KEY) {
-  app.log.warn('DEMIST_VAULT_KEY not set — the secrets vault is disabled');
+  app.log.warn(
+    'DEMIST_VAULT_KEY not set — the secrets vault is disabled. ' +
+      "Restart with DEMIST_VAULT_KEY='a passphrase you keep' to store secrets encrypted.",
+  );
 }

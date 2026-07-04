@@ -12,11 +12,14 @@
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w @demist/server\" \"npm run dev -w @demist/web\"",
     "test": "npm run test -w @demist/core && npm run test -w @demist/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "build": "npm run build -w @demist/web",
+    "build": "npm run build -w @demist/web && node scripts/bundle.mjs",
+    "start": "node packages/demist/bin/demist.mjs",
+    "pack:demist": "npm run build && npm pack --workspace demist --pack-destination .",
     "e2e": "tsx scripts/e2e.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "esbuild": "^0.24.2",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   },

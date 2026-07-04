@@ -1,5 +1,8 @@
 # demist
 
+[![CI](https://github.com/jermainewalkes/demist/actions/workflows/ci.yml/badge.svg)](https://github.com/jermainewalkes/demist/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **A spec-driven multi-API workbench.** Point it at any OpenAPI/Swagger spec URL and get a humane
 GUI: operations grouped by resource, request forms generated from schemas, auth configured once
 per API — with multiple APIs living side by side in one workspace.
@@ -32,19 +35,31 @@ Early but capable — milestones 1–3 are done:
 - [x] OAuth2 client credentials (token caching) and authorization code (PKCE, auto-refresh)
 - [x] Capability map: an X-ray of everything an API can do, from its spec alone
 - [x] Spec diffing: compare your workspace copy against upstream, one-click update
-- [ ] Publishing: npx one-command run, GitHub release
+- [x] Single-command run (`npm start` / packaged `demist` bin); npm registry publish pending
 
 ## Quick start
 
 ```sh
-npm install
+git clone https://github.com/jermainewalkes/demist && cd demist
+npm install && npm run build
+DEMIST_VAULT_KEY='a passphrase you keep' npm start
+```
+
+Then open http://localhost:4400, paste a spec URL (e.g. the
+[Petstore](https://petstore3.swagger.io/api/v3/openapi.json)), and explore.
+(`npx demist` from the npm registry is coming; the package is built and named.)
+
+Good first specs to try: [PokéAPI](https://raw.githubusercontent.com/PokeAPI/pokeapi/master/openapi.yml)
+(no auth, great for chaining), [httpbin](https://httpbin.org/spec.json) (echoes what it
+receives — verify the transcript with your own eyes), or GitHub's 12 MB spec (a stress test).
+
+### Development mode
+
+```sh
 npm run dev
 ```
 
-Then open http://localhost:5173, paste a spec URL (e.g. the
-[Petstore](https://petstore3.swagger.io/api/v3/openapi.json)), and explore.
-
-The server listens on http://localhost:4400; the Vite dev server proxies `/api` to it.
+Server on http://localhost:4400, hot-reloading UI on http://localhost:5173 (proxies `/api`).
 
 ## The workspace file
 
@@ -86,6 +101,12 @@ npm test            # unit tests (fixture corpus of real and broken specs)
 npm run e2e         # end-to-end: proves the proxy sends exactly what the transcript claims
 npm run typecheck
 ```
+
+## Contributing & security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). The one-line philosophy
+for contributions: keep it generic (derived from the spec, never per-vendor), and never hide
+the HTTP.
 
 ## License
 

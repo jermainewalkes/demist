@@ -3,3 +3,4 @@ dist/
 .demist/
 *.log
 .DS_Store
+packages/demist/README.md
