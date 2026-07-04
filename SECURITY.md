@@ -5,9 +5,10 @@ at rest (AES-256-GCM). Security reports are very welcome.
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for security problems. Email
-**[redacted]** with details and, ideally, a reproduction. You should get a
-response within a few days.
+Please **do not open a public issue** for security problems. Use GitHub's private
+vulnerability reporting instead: the repository's **Security tab → Report a vulnerability**
+(https://github.com/jermainewalkes/demist/security/advisories/new). Include details and,
+ideally, a reproduction. You should get a response within a few days.
 
 ## Scope notes
 
