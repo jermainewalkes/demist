@@ -69,7 +69,21 @@ export function App() {
   const selectOperation = useCallback((apiId: string, opId: string) => {
     setRestore(null);
     setView({ kind: 'op', apiId, opId });
+    // Deep-linkable: #apiId/opId
+    window.history.replaceState(null, '', `#${encodeURIComponent(apiId)}/${encodeURIComponent(opId)}`);
   }, []);
+
+  // Restore an operation from the URL hash on load (shareable links, screenshots).
+  useEffect(() => {
+    const raw = window.location.hash.slice(1);
+    const i = raw.indexOf('/');
+    if (i <= 0) return;
+    const apiId = decodeURIComponent(raw.slice(0, i));
+    const opId = decodeURIComponent(raw.slice(i + 1));
+    loadApi(apiId)
+      .then(() => setView({ kind: 'op', apiId, opId }))
+      .catch(() => {});
+  }, [loadApi]);
 
   const selectSavedRequest = useCallback(
     async (saved: SavedRequest) => {
