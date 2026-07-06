@@ -12,7 +12,11 @@
   </p>
 </div>
 
+<<<<<<< HEAD
 APIs feel mysterious mostly because tooling hides the plumbing. Demist takes any OpenAPI or
+=======
+To some, APIs can feel mysterious mostly because tooling hides the plumbing. demist takes any OpenAPI or
+>>>>>>> github/main
 Swagger spec — by URL or paste — and derives a humane GUI from it: operations grouped by
 resource, request forms generated from the schemas and auth configured once per API, with as
 many APIs as you like side by side in one workspace. Its signature habit is honesty: every
