@@ -37,7 +37,7 @@ export function App() {
       setRequests(ws.requests);
       setVaultEnabled(ws.vaultEnabled);
     } catch (e) {
-      setError(`Cannot reach the demist server — is it running? (${(e as Error).message})`);
+      setError(`Cannot reach the Demist server — is it running? (${(e as Error).message})`);
     }
   }, []);
 
@@ -116,7 +116,7 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="logo">demist</span>
+        <span className="logo">Demist</span>
         <span className="tagline">the API workbench that shows its work</span>
         <span className={`vault-dot ${vaultEnabled ? 'on' : 'off'}`}>
           vault {vaultEnabled ? 'unlocked' : 'disabled'}
@@ -168,7 +168,7 @@ export function App() {
               <h2>No operation selected</h2>
               <p>
                 Add an API by pasting an OpenAPI/Swagger spec URL on the left, then pick an
-                operation. demist generates the form from the spec — and always shows you the
+                operation. Demist generates the form from the spec — and always shows you the
                 exact HTTP it sends.
               </p>
               <p>

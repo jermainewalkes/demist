@@ -174,7 +174,7 @@ export function Sidebar({
         href="https://ko-fi.com/jwalkes"
         target="_blank"
         rel="noopener noreferrer"
-        title="demist is free and open source — support its development"
+        title="Demist is free and open source — support its development"
       >
         ☕ Support us on Ko-Fi
       </a>

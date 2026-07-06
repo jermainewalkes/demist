@@ -34,8 +34,8 @@ if (webDist) {
 }
 
 await app.listen({ port, host });
-app.log.info(`demist workspace root: ${root}`);
-if (webDist) app.log.info(`demist UI: http://${host}:${port}`);
+app.log.info(`Demist workspace root: ${root}`);
+if (webDist) app.log.info(`Demist UI: http://${host}:${port}`);
 if (!process.env.DEMIST_VAULT_KEY) {
   app.log.warn(
     'DEMIST_VAULT_KEY not set — the secrets vault is disabled. ' +

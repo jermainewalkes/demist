@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * Configure the base URL and one auth profile per API. The schemes offered are
- * exactly what the spec declares — demist derives, it doesn't invent.
+ * exactly what the spec declares — Demist derives, it doesn't invent.
  * Secret values go straight into the server-side vault; the UI never re-reads them.
  */
 export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
@@ -147,7 +147,7 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
               {useClientCredentials && (
                 <>
                   <p className="hint">
-                    demist will fetch tokens from <code>{ccTokenUrl}</code> and cache them until
+                    Demist will fetch tokens from <code>{ccTokenUrl}</code> and cache them until
                     expiry.
                   </p>
                   <label>
@@ -164,7 +164,7 @@ export function AuthPanel({ apiId, loadedApi, vaultEnabled, onSaved }: Props) {
                 <>
                   <p className="hint">
                     Register this redirect URI with the provider: <code>{callbackUrl}</code>.
-                    demist uses PKCE; tokens are stored encrypted in the vault and refreshed
+                    Demist uses PKCE; tokens are stored encrypted in the vault and refreshed
                     automatically.
                   </p>
                   <label>

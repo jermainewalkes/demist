@@ -1,6 +1,6 @@
-# Contributing to demist
+# Contributing to Demist
 
-Thanks for your interest! demist aims to stay small, generic, and honest: everything is derived
+Thanks for your interest! Demist aims to stay small, generic, and honest: everything is derived
 from the OpenAPI spec (never hand-tuned per API), and the raw HTTP is never hidden.
 
 ## Development setup

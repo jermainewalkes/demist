@@ -1,6 +1,6 @@
 # Security policy
 
-demist is a local-first tool that proxies HTTP requests and stores API credentials encrypted
+Demist is a local-first tool that proxies HTTP requests and stores API credentials encrypted
 at rest (AES-256-GCM). Security reports are very welcome.
 
 ## Reporting a vulnerability

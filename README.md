@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="docs/icon.svg" width="96" alt="demist icon"/>
-  <h1>demist</h1>
+  <img src="docs/icon.svg" width="96" alt="Demist icon"/>
+  <h1>Demist</h1>
   <p><strong>A spec-driven multi-API workbench that always shows you the raw HTTP.</strong></p>
   <p>
     <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue.svg" alt="MIT licence"/></a>
@@ -12,7 +12,7 @@
   </p>
 </div>
 
-APIs feel mysterious mostly because tooling hides the plumbing. demist takes any OpenAPI or
+APIs feel mysterious mostly because tooling hides the plumbing. Demist takes any OpenAPI or
 Swagger spec — by URL or paste — and derives a humane GUI from it: operations grouped by
 resource, request forms generated from the schemas and auth configured once per API, with as
 many APIs as you like side by side in one workspace. Its signature habit is honesty: every
@@ -21,7 +21,7 @@ request/response transcript with secrets masked.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshot-dark.png"/>
-  <img src="docs/screenshot-dark.png" alt="demist showing a Petstore operation with a generated form and the live raw-HTTP preview" width="900"/>
+  <img src="docs/screenshot-dark.png" alt="Demist showing a Petstore operation with a generated form and the live raw-HTTP preview" width="900"/>
 </picture>
 
 ## What it does
@@ -47,7 +47,7 @@ request/response transcript with secrets masked.
 
 ## Security posture
 
-demist handles credentials, so the rules are strict:
+Demist handles credentials, so the rules are strict:
 
 - Secrets live in a local vault encrypted with AES-256-GCM under a key derived from
   `DEMIST_VAULT_KEY`; without that variable the vault is disabled rather than falling back to
@@ -62,7 +62,7 @@ demist handles credentials, so the rules are strict:
 
 ## Where things live
 
-Everything is scoped to the directory you run demist from:
+Everything is scoped to the directory you run Demist from:
 
 | Path | What it holds |
 | --- | --- |
@@ -114,7 +114,7 @@ every transcript.
 
 **Log in with OAuth2.** For a spec declaring an authorisation-code flow, open auth & server
 settings, choose "authorization code", register the shown redirect URI with the provider and
-click Save & Authorize — demist handles PKCE, stores tokens encrypted and refreshes them
+click Save & Authorize — Demist handles PKCE, stores tokens encrypted and refreshes them
 automatically.
 
 ## Troubleshooting
@@ -124,11 +124,11 @@ automatically.
 - **"Could not fetch spec: fetch failed — …"** — the tail of the message is the real cause
   (DNS, timeout, TLS). Transient failures from raw.githubusercontent.com are common; retry,
   or use a mirror such as cdn.jsdelivr.net.
-- **"Vault disabled"** — start demist with `DEMIST_VAULT_KEY` set. Secrets are encrypted
+- **"Vault disabled"** — start Demist with `DEMIST_VAULT_KEY` set. Secrets are encrypted
   with it, so use the same key every time; a lost key means re-entering secrets.
 - **Port already in use** — set `DEMIST_PORT` (and `DEMIST_HOST` stays `127.0.0.1` unless
   you know why you're changing it).
-- **A spec loads with warnings** — demist renders what it can and lists the problems in the
+- **A spec loads with warnings** — Demist renders what it can and lists the problems in the
   sidebar rather than refusing; the warnings tell you what the spec is missing.
 
 ## Development
@@ -160,7 +160,7 @@ UI is keyboard-navigable. Accessibility gaps are treated as bugs — please repo
 
 ## Support
 
-demist is free under the [MIT licence](LICENSE). If it saves you time, you can support its
+Demist is free under the [MIT licence](LICENSE). If it saves you time, you can support its
 development directly at **[ko-fi.com/jwalkes](https://ko-fi.com/jwalkes)** ☕ — entirely
 optional, always appreciated.
 

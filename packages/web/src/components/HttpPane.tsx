@@ -14,7 +14,7 @@ interface Props {
 const MAX_TREE_BYTES = 400_000;
 
 /**
- * The de-mystifying pane: the exact request demist will send (live preview),
+ * The de-mystifying pane: the exact request Demist will send (live preview),
  * and the full exchange once sent. Secrets arrive pre-masked from the server.
  * JSON responses render as a clickable tree: clicking a key fills the extract
  * path below — click the data you can see, get the path.

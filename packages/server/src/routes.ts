@@ -73,7 +73,7 @@ function resolveAuthCodeConfig(
 }
 
 function callbackHtml(title: string, message: string): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>demist</title>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Demist</title>
 <style>body{font-family:-apple-system,sans-serif;background:#10141a;color:#d7dee8;display:grid;place-items:center;height:100vh;margin:0}
 main{text-align:center}h1{font-size:20px}p{color:#8b98a9}</style></head>
 <body><main><h1>${title}</h1><p>${message}</p></main></body></html>`;
@@ -273,7 +273,7 @@ export function registerRoutes(app: FastifyInstance, services: Services): void {
           return resolveAuthCodeConfig(entry.id, entry.auth, scheme, vault);
         });
         return reply.send(
-          callbackHtml('Authorized ✓', `demist can now call "${apiId}". You can close this tab.`),
+          callbackHtml('Authorized ✓', `Demist can now call "${apiId}". You can close this tab.`),
         );
       } catch (e) {
         return reply
