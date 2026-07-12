@@ -46,7 +46,9 @@ problem** and assert the expected normalized output.
 
 ## Releasing
 
-Releases drive both the update notification and the Docker image:
+Demist follows [semantic versioning](https://semver.org) from 2.0.0 onward: a new feature
+bumps the minor (2.1.0), a fix bumps the patch (2.0.1) and a breaking change bumps the major
+(3.0.0). Releases drive both the update notification and the Docker image:
 
 1. Bump the version in the root and all `packages/*/package.json` files, run `npm install`
    to refresh the lockfile, commit and push.
