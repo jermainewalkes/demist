@@ -111,13 +111,8 @@ docker run -d --name demist -p 127.0.0.1:4400:4400 \
 `docker compose pull && docker compose up -d`. For unattended updates, run
 [Watchtower](https://containrrr.dev/watchtower/) alongside.
 
-**From source** (also the development path):
-
-```sh
-git clone https://github.com/jermainewalkes/demist && cd demist
-npm install && npm run build
-DEMIST_VAULT_KEY='a passphrase you keep' npm start
-```
+Docker is the supported way to run Demist. (Building from source is covered under
+[Development](#development) below, for contributors.)
 
 Then open http://localhost:4400 and paste a spec URL. Good first specs:
 the [Petstore](https://petstore3.swagger.io/api/v3/openapi.json),
@@ -156,6 +151,16 @@ automatically.
   sidebar rather than refusing; the warnings tell you what the spec is missing.
 
 ## Development
+
+Run Demist from source (for contributing — end users should use Docker above):
+
+```sh
+git clone https://github.com/jermainewalkes/demist && cd demist
+npm install && npm run build
+DEMIST_VAULT_KEY='a passphrase you keep' npm start   # or: npm run dev
+```
+
+Layout and the common commands:
 
 ```
 packages/core     spec engine: parse, normalise and diff any Swagger 2.0 / OpenAPI 3.x document
