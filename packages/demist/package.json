@@ -1,6 +1,6 @@
 {
   "name": "demist",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A spec-driven multi-API workbench: point it at any OpenAPI spec and get a humane GUI that always shows the raw HTTP.",
   "license": "MIT",
   "type": "module",

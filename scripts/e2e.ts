@@ -186,6 +186,17 @@ async function startEcho(): Promise<{
         res.end(JSON.stringify(diffSpec(base, diffVersion)));
         return;
       }
+      if (req.url === '/releases/latest') {
+        res.setHeader('etag', '"rel-etag"');
+        res.end(
+          JSON.stringify({
+            tag_name: 'v9.9.9',
+            body: 'e2e release notes',
+            html_url: 'https://example.com/releases/v9.9.9',
+          }),
+        );
+        return;
+      }
       if (req.url?.startsWith('/authorize')) {
         // "Log in" instantly: remember the PKCE challenge, bounce back with a code.
         const q = new URL(req.url, base).searchParams;
@@ -248,7 +259,7 @@ async function startEcho(): Promise<{
   };
 }
 
-async function startDemist(root: string): Promise<ChildProcess> {
+async function startDemist(root: string, updateRepoBase: string): Promise<ChildProcess> {
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
   const child = spawn('npx', ['tsx', 'packages/server/src/index.ts'], {
     cwd: repoRoot,
@@ -257,6 +268,7 @@ async function startDemist(root: string): Promise<ChildProcess> {
       DEMIST_DIR: root,
       DEMIST_PORT: String(DEMIST_PORT),
       DEMIST_VAULT_KEY: 'e2e-master-key',
+      DEMIST_UPDATE_REPO: updateRepoBase,
     },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
@@ -295,7 +307,7 @@ const {
 let child: ChildProcess | undefined;
 
 try {
-  child = await startDemist(root);
+  child = await startDemist(root, echoBase);
   console.log('e2e: demist and echo servers up');
 
   // 1. Ingest the echo API's spec by URL — the generic path, no special-casing.
@@ -542,6 +554,20 @@ try {
   check('refresh updates the workspace copy', refreshed.index.operations.length === 2);
   const diffAfter = await demist<{ identical: boolean }>(`/api/apis/${diffAdded.id}/diff`);
   check('post-refresh diff is identical', diffAfter.identical);
+
+  // ---- update check -------------------------------------------------------
+  const upd = await demist<{
+    updateAvailable: boolean;
+    latest?: string;
+    notes?: string;
+    installMode: string;
+    current: string;
+  }>('/api/update');
+  check('update available against mock releases', upd.updateAvailable && upd.latest === 'v9.9.9');
+  check('release notes carried through', upd.notes === 'e2e release notes');
+  check('install mode detected as git checkout', upd.installMode === 'git');
+  const health = await demist<{ version: string; installMode: string }>('/api/health');
+  check('health reports version + install mode', health.version === upd.current && health.installMode === 'git');
 } finally {
   child?.kill();
   echo.close();

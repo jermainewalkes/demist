@@ -1,0 +1,20 @@
+services:
+  demist:
+    image: ghcr.io/jermainewalkes/demist:latest
+    container_name: demist
+    ports:
+      # Bound to host localhost by design — Demist is a local, single-user tool.
+      - "127.0.0.1:4400:4400"
+    volumes:
+      # A named volume keeps file ownership correct across platforms. To use a
+      # host directory instead (for hand-editing demist.workspace.yaml), swap in
+      #   - ./demist-data:/workspace
+      # and create the directory before first start.
+      - demist-data:/workspace
+    environment:
+      # Put DEMIST_VAULT_KEY in a .env file next to this compose file.
+      - DEMIST_VAULT_KEY=${DEMIST_VAULT_KEY:?set DEMIST_VAULT_KEY in .env}
+    restart: unless-stopped
+
+volumes:
+  demist-data:

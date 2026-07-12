@@ -19,6 +19,8 @@ import {
 import type { TokenManager } from './oauth.js';
 import type { SpecStore } from './store.js';
 import { substitute } from './template.js';
+import type { UpdateChecker } from './update.js';
+import { appVersion } from './version.js';
 import type { Vault } from './vault.js';
 import type { AuthProfile, SavedRequest, WorkspaceStore } from './workspace.js';
 
@@ -28,6 +30,7 @@ export interface Services {
   vault: Vault;
   tokens: TokenManager;
   authCode: AuthCodeManager;
+  updates: UpdateChecker;
 }
 
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -80,9 +83,18 @@ main{text-align:center}h1{font-size:20px}p{color:#8b98a9}</style></head>
 }
 
 export function registerRoutes(app: FastifyInstance, services: Services): void {
-  const { workspace, store, vault, tokens, authCode } = services;
+  const { workspace, store, vault, tokens, authCode, updates } = services;
 
-  app.get('/api/health', async () => ({ ok: true, vaultEnabled: vault.enabled }));
+  app.get('/api/health', async () => ({
+    ok: true,
+    vaultEnabled: vault.enabled,
+    version: appVersion,
+    installMode: updates.status().installMode,
+  }));
+
+  app.get('/api/update', async () => updates.status());
+
+  app.post('/api/update/check', async () => updates.checkNow());
 
   app.get('/api/workspace', async () => {
     const ws = workspace.read();

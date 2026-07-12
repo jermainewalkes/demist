@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.demist
+docs
+*.log
+*.tgz
+demist.workspace.yaml
+packages/core/test/fixtures/github-3.1.json

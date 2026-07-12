@@ -44,6 +44,18 @@ problem** and assert the expected normalized output.
   suite asserts no secret bytes reach the browser — keep it green.
 - Match the existing code style; TypeScript strict mode is non-negotiable.
 
+## Releasing
+
+Releases drive both the update notification and the Docker image:
+
+1. Bump the version in the root and all `packages/*/package.json` files, run `npm install`
+   to refresh the lockfile, commit and push.
+2. `gh release create vX.Y.Z --generate-notes` — publishing the release triggers the
+   Actions workflow that builds and pushes the multi-arch image to
+   `ghcr.io/jermainewalkes/demist` (tags: the version and `latest`).
+3. Running instances notice within 24 hours (or on their next restart) and show the
+   update badge.
+
 ## Pull requests
 
 Keep them focused. Include tests. Run the full suite (`npm test && npm run e2e && npm run

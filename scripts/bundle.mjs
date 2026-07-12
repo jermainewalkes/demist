@@ -1,7 +1,7 @@
 // Bundle the server (core included) into a single self-contained ESM file and
 // place the built web UI beside it — everything `npx demist` needs, no runtime deps.
 import { build } from 'esbuild';
-import { cpSync, rmSync, existsSync } from 'node:fs';
+import { cpSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,8 +16,13 @@ if (!existsSync(webDist)) {
 
 rmSync(outDir, { recursive: true, force: true });
 
+const { version } = JSON.parse(
+  readFileSync(join(root, 'packages/demist/package.json'), 'utf8'),
+);
+
 await build({
   entryPoints: [join(root, 'packages/server/src/index.ts')],
+  define: { __DEMIST_VERSION__: JSON.stringify(version) },
   bundle: true,
   platform: 'node',
   target: 'node20',

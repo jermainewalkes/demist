@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { OperationView } from './components/OperationView';
 import { CapabilityMap } from './components/CapabilityMap';
 import { SpecDiffView } from './components/SpecDiffView';
+import { UpdateBadge } from './components/UpdateBadge';
 import type { ApiIndex, SavedRequest, WorkspaceApi } from './types';
 
 export interface LoadedApi {
@@ -118,6 +119,7 @@ export function App() {
       <header className="topbar">
         <span className="logo">Demist</span>
         <span className="tagline">the API workbench that shows its work</span>
+        <UpdateBadge />
         <span className={`vault-dot ${vaultEnabled ? 'on' : 'off'}`}>
           vault {vaultEnabled ? 'unlocked' : 'disabled'}
         </span>

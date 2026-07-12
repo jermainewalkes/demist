@@ -6,6 +6,7 @@ import type {
   OperationDetail,
   SavedRequest,
   SpecDiff,
+  UpdateStatus,
   WorkspaceApi,
 } from './types';
 
@@ -87,4 +88,6 @@ export const api = {
 
   refreshApi: (id: string) =>
     call<{ index: ApiIndex }>(`/api/apis/${id}/refresh`, { method: 'POST' }),
+
+  updateStatus: () => call<UpdateStatus>('/api/update'),
 };

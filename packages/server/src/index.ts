@@ -7,7 +7,9 @@ import { TokenManager } from './oauth.js';
 import { AuthCodeManager } from './oauth-code.js';
 import { registerRoutes } from './routes.js';
 import { SpecStore } from './store.js';
+import { detectInstallMode, UpdateChecker } from './update.js';
 import { Vault } from './vault.js';
+import { appVersion } from './version.js';
 import { WorkspaceStore } from './workspace.js';
 
 const root = process.env.DEMIST_DIR ? resolve(process.env.DEMIST_DIR) : process.cwd();
@@ -16,6 +18,17 @@ const host = process.env.DEMIST_HOST ?? '127.0.0.1'; // local tool: never expose
 
 const app = Fastify({ logger: { level: 'info' } });
 
+// The application root (a git checkout in dev / from-source installs); distinct
+// from `root`, which is the user's workspace directory.
+const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const updates = new UpdateChecker(
+  appVersion,
+  detectInstallMode(appRoot),
+  !process.env.DEMIST_NO_UPDATE_CHECK,
+  process.env.DEMIST_UPDATE_REPO,
+);
+updates.start();
+
 const vault = new Vault(join(root, '.demist', 'vault.json'), process.env.DEMIST_VAULT_KEY);
 registerRoutes(app, {
   workspace: new WorkspaceStore(join(root, 'demist.workspace.yaml')),
@@ -23,6 +36,7 @@ registerRoutes(app, {
   vault,
   tokens: new TokenManager(),
   authCode: new AuthCodeManager(vault, `http://127.0.0.1:${port}/api/oauth/callback`),
+  updates,
 });
 
 // Serve the built UI when it exists; in dev, Vite serves it instead.

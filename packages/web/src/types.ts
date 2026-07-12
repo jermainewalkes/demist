@@ -126,6 +126,18 @@ export interface ExecutePayload {
   dryRun?: boolean;
 }
 
+export interface UpdateStatus {
+  current: string;
+  installMode: 'docker' | 'git' | 'package';
+  enabled: boolean;
+  updateAvailable: boolean;
+  latest?: string;
+  notes?: string;
+  url?: string;
+  checkedAt?: number;
+  lastError?: string;
+}
+
 export interface ExecuteResult {
   request: ExchangeRequest;
   response?: ExchangeResponse;

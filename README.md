@@ -6,7 +6,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue.svg" alt="MIT licence"/></a>
     <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platforms"/>
     <img src="https://img.shields.io/badge/runtime-Node%20%E2%89%A5%2020%20%C2%B7%20TypeScript%20%C2%B7%20React-3178c6" alt="Runtime"/>
-    <img src="https://img.shields.io/badge/tests-39%20unit%20%2B%2045%20e2e-3fb950" alt="Tests"/>
+    <img src="https://img.shields.io/badge/tests-47%20unit%20%2B%2049%20e2e-3fb950" alt="Tests"/>
     <a href="https://github.com/jermainewalkes/demist/actions/workflows/ci.yml"><img src="https://github.com/jermainewalkes/demist/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
     <a href="https://ko-fi.com/jwalkes"><img src="https://img.shields.io/badge/Ko--fi-support%20this%20project-FF5E5B?logo=kofi&logoColor=white" alt="Ko-fi"/></a>
   </p>
@@ -57,6 +57,11 @@ Demist handles credentials, so the rules are strict:
   them back in a response body.
 - The workspace file never contains secret values, only references to vault entry names.
 - The server binds to `127.0.0.1` by default and is designed for single-user local use.
+  (Inside the Docker image it binds `0.0.0.0` — necessary across the container boundary —
+  and the provided compose file maps it back to host localhost.)
+- Once a day Demist makes one anonymous request to the GitHub API to learn whether a newer
+  release exists — nothing about you or your workspace is sent. Disable it entirely with
+  `DEMIST_NO_UPDATE_CHECK=1`.
 - Security reports go through [GitHub private vulnerability reporting](https://github.com/jermainewalkes/demist/security/advisories/new) —
   see [SECURITY.md](SECURITY.md).
 
@@ -87,7 +92,26 @@ variables:
 
 ## Install and run
 
-From source (npm registry publish is coming — the package is built and named):
+**Docker (recommended).** Grab [docker-compose.yml](docker-compose.yml), put
+`DEMIST_VAULT_KEY=a-passphrase-you-keep` in a `.env` file next to it, then:
+
+```sh
+docker compose up -d
+```
+
+Or as a one-liner without compose:
+
+```sh
+docker run -d --name demist -p 127.0.0.1:4400:4400 \
+  -v demist-data:/workspace -e DEMIST_VAULT_KEY='a passphrase you keep' \
+  ghcr.io/jermainewalkes/demist:latest
+```
+
+**Updating:** Demist tells you in the app when a new release exists; applying it is
+`docker compose pull && docker compose up -d`. For unattended updates, run
+[Watchtower](https://containrrr.dev/watchtower/) alongside.
+
+**From source** (also the development path):
 
 ```sh
 git clone https://github.com/jermainewalkes/demist && cd demist
@@ -166,6 +190,7 @@ optional, always appreciated.
 
 ## Roadmap
 
+- [x] Docker distribution via GHCR with in-app update notification
 - npm registry publish, so `npx demist` works everywhere
 - Custom form field templates (retiring the last react-jsonschema-form defaults)
 - OAuth2 device-code flow for CLI-adjacent providers
