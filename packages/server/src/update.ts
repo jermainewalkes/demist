@@ -26,7 +26,8 @@ export interface UpdateStatus {
 /** Numeric semver comparison, tolerant of a leading "v": -1 | 0 | 1. */
 export function compareSemver(a: string, b: string): number {
   const parse = (v: string) =>
-    v.replace(/^v/i, '').split('-')[0].split('.').map((n) => Number(n) || 0);
+    // Drop a leading "v" and any pre-release ("-rc.1") or build ("+build.5") suffix.
+    v.replace(/^v/i, '').split(/[-+]/)[0].split('.').map((n) => Number(n) || 0);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {

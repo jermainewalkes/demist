@@ -55,8 +55,8 @@ bumps the minor (2.1.0), a fix bumps the patch (2.0.1) and a breaking change bum
 2. `gh release create vX.Y.Z --generate-notes` — publishing the release triggers the
    Actions workflow that builds and pushes the multi-arch image to
    `ghcr.io/jermainewalkes/demist` (tags: the version and `latest`).
-3. Running instances notice within 24 hours (or on their next restart) and show the
-   update badge.
+3. A running server re-checks within 24 hours (or on restart); each browser tab shows the
+   update badge the next time it loads the app.
 
 ## Pull requests
 

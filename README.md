@@ -6,7 +6,7 @@
     <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue.svg" alt="MIT licence"/></a>
     <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey" alt="Platforms"/>
     <img src="https://img.shields.io/badge/runtime-Node%20%E2%89%A5%2020%20%C2%B7%20TypeScript%20%C2%B7%20React-3178c6" alt="Runtime"/>
-    <img src="https://img.shields.io/badge/tests-47%20unit%20%2B%2049%20e2e-3fb950" alt="Tests"/>
+    <img src="https://img.shields.io/badge/tests-47%20unit%20%2B%2050%20e2e-3fb950" alt="Tests"/>
     <a href="https://github.com/jermainewalkes/demist/actions/workflows/ci.yml"><img src="https://github.com/jermainewalkes/demist/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
     <a href="https://ko-fi.com/jwalkes"><img src="https://img.shields.io/badge/Ko--fi-support%20this%20project-FF5E5B?logo=kofi&logoColor=white" alt="Ko-fi"/></a>
   </p>

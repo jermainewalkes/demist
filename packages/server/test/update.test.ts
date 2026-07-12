@@ -13,6 +13,7 @@ describe('compareSemver', () => {
     expect(compareSemver('0.10.0', '0.9.0')).toBe(1); // numeric, not lexicographic
     expect(compareSemver('1.2', '1.2.0')).toBe(0);
     expect(compareSemver('1.2.0-beta', '1.2.0')).toBe(0); // prerelease ignored on purpose
+    expect(compareSemver('2.0.0', 'v2.0.0+build.5')).toBe(0); // build metadata ignored
   });
 });
 

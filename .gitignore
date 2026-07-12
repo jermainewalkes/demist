@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .demist/
+.env
 *.log
 .DS_Store
 packages/demist/README.md

@@ -21,10 +21,14 @@ const app = Fastify({ logger: { level: 'info' } });
 // The application root (a git checkout in dev / from-source installs); distinct
 // from `root`, which is the user's workspace directory.
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+// Disabled only when DEMIST_NO_UPDATE_CHECK is set to a real "on" value —
+// "0"/"false" (and unset) leave the check enabled.
+const noCheck = (process.env.DEMIST_NO_UPDATE_CHECK ?? '').toLowerCase();
+const updateCheckEnabled = noCheck === '' || noCheck === '0' || noCheck === 'false';
 const updates = new UpdateChecker(
   appVersion,
   detectInstallMode(appRoot),
-  !process.env.DEMIST_NO_UPDATE_CHECK,
+  updateCheckEnabled,
   process.env.DEMIST_UPDATE_REPO,
 );
 updates.start();

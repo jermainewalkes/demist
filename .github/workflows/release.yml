@@ -13,8 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Releases cut from a commit that predates Docker (e.g. the 1.0.0 baseline)
-      # have no Dockerfile; skip the image build cleanly rather than failing.
+      # A release event runs the workflow at the tag's own commit. If that commit
+      # has this workflow but no Dockerfile, skip the image build cleanly rather
+      # than failing (defensive — a commit with neither never reaches here).
       - id: check
         run: |
           if [ -f Dockerfile ]; then echo "build=true" >> "$GITHUB_OUTPUT"; else echo "build=false" >> "$GITHUB_OUTPUT"; fi
@@ -35,7 +36,7 @@ jobs:
           images: ghcr.io/jermainewalkes/demist
           tags: |
             type=semver,pattern={{version}}
-            type=raw,value=latest
+            type=raw,value=latest,enable=${{ github.event.release.prerelease == false }}
       - if: steps.check.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
